@@ -68,12 +68,28 @@ def _analyze(tool: str, target: str, command: list[str], project: Path,
 def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout: int = 60,
                     transaction_count: int = 2, solc_binary: Path | None = None,
                     mythril_binary: Path | None = None,
+                    mythril_max_sources: int = 10,
                     demo_fallback: bool = False) -> AnalysisBundle:
-    """Run Slither for the project and bounded Mythril analysis for every source file."""
+    """Run Slither plus bounded Mythril analysis without unbounded corpus runtimes."""
     project = project.resolve()
     paths, profile = project_sources(project)
+    # Slither follows imports and will otherwise report hundreds of issues in vendored
+    # libraries.  Keep the audit focused on the target project's configured source
+    # directory; callers can scan a dependency as its own Foundry project when needed.
+    configured_source = (project / profile.get("src", "src")).resolve()
+
+    def is_project_source(finding: VulnerabilityFinding) -> bool:
+        if not finding.file:
+            return False
+        candidate = (project / finding.file).resolve()
+        return candidate == configured_source or configured_source in candidate.parents
+
     bundle = AnalysisBundle()
     run, findings = _analyze("slither", ".", ["slither", ".", "--json", "-"], project, runner, parse_slither)
+    findings = [finding for finding in findings if is_project_source(finding)]
+    # The report describes the target-project findings, rather than the scanner's
+    # raw total which also includes imported third-party dependencies.
+    run.finding_count = len(findings)
     bundle.runs.append(run)
     bundle.findings.extend(findings)
     # Keep compiler settings/remappings aligned with the default Foundry profile.
@@ -92,14 +108,18 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
         if "via_ir" in profile:
             solc_settings["viaIR"] = bool(profile["via_ir"])
         settings_file.write_text(json.dumps(solc_settings), encoding="utf-8")
-        for path in paths:
+        selected_paths = paths[:mythril_max_sources]
+        for path in selected_paths:
             myth_command = str(mythril_binary.resolve()) if mythril_binary and mythril_binary.is_file() else "myth"
             command = [myth_command, "analyze", str(path), "-o", "json", "--no-onchain-data",
                        "--execution-timeout", str(mythril_timeout),
                        "--transaction-count", str(transaction_count), "--solc-json", str(settings_file)]
             version = profile.get("solc_version", profile.get("solc"))
-            myth_env = {"SOLC": str(solc_binary.resolve())} if solc_binary and solc_binary.is_file() else None
-            if myth_env is None and isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version):
+            myth_env = {"MYTHRIL_DIR": str(Path(temp) / "mythril")}
+            has_configured_solc = bool(solc_binary and solc_binary.is_file())
+            if has_configured_solc:
+                myth_env["SOLC"] = str(solc_binary.resolve())
+            if not has_configured_solc and isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version):
                 command.extend(["--solv", version])
             run, findings = _analyze("mythril", path.relative_to(project).as_posix(), command,
                                      project, runner, parse_mythril, myth_env)
@@ -109,6 +129,11 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
                 bundle.runs.append(AnalyzerRun(tool="mythril", target="remaining sources", status="skipped",
                                                diagnostics=["Mythril unavailable; remaining source files were not analyzed"]))
                 break
+        if len(paths) > len(selected_paths):
+            bundle.runs.append(AnalyzerRun(
+                tool="mythril", target="remaining sources", status="skipped",
+                diagnostics=[f"Mythril source limit is {mythril_max_sources}; {len(paths) - len(selected_paths)} source file(s) were not analyzed"],
+            ))
     if not paths:
         bundle.runs.append(AnalyzerRun(tool="mythril", target=".", status="skipped",
                                        diagnostics=["No Solidity source files found"]))

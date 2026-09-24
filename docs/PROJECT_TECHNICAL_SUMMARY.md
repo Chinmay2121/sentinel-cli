@@ -47,4 +47,4 @@ The valid fixture criterion is the same direction as PoCo's patch oracle: the ex
 
 The supplied reentrancy and access-control fixture PoCs pass with Forge on their vulnerable source. Both full loops were run successfully on 2026-09-24 and reached `verified`; the target source was unchanged. Slither and Mythril also ran successfully against the reentrancy fixture with a configured native `SOLC_BINARY`, producing three findings each. Python tests cover command safety, parser behavior, API validation, workspace isolation, PoC content, patch behavior, provider transports, and Judge outcome handling.
 
-The implementation does not yet provide arbitrary-contract PoC synthesis, RAG/Neo4j repairs, Medusa/Echidna integration, authentication, remote deployment, benchmark results, or production telemetry. Those features must not be described as complete during a viva.
+The implementation does not yet provide arbitrary-contract PoC synthesis, Medusa/Echidna integration, authentication, remote deployment, measured corpus results, or production telemetry. Those features must not be described as complete during a viva.

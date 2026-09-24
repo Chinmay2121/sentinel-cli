@@ -24,6 +24,10 @@ def scan(
     no_docker: bool = typer.Option(False, "--no-docker"),
 ) -> None:
     del verbose, no_docker
+    if scout_only:
+        typer.echo("Starting tool-only Scout scan (Slither and bounded Mythril); this can take about a minute.")
+    else:
+        typer.echo("Starting agentic scan: Scout, Red Team, Blue Team, and Judge.")
     try:
         final_state = run_scan(project, output=output, max_retries=max_retries, mock=mock, scout_only=scout_only)
     except ValueError as exc:

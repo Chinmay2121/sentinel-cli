@@ -11,7 +11,7 @@ from sentinel.agents.scout import Scout
 from sentinel.analyzers.tools import extract_solidity_context
 from sentinel.config import settings
 from sentinel.foundry.runner import FoundryRunner
-from sentinel.llm.gemini import GeminiScout
+from sentinel.llm.gemini import GeminiProvider, GeminiScout
 from sentinel.llm.mock import MockProvider
 from sentinel.llm.ollama import OllamaBlueTeam
 from sentinel.llm.openai import OpenAIRedTeam
@@ -22,8 +22,14 @@ from sentinel.schemas.state import RetryRecord, RuntimeState
 def build_workflow(runner: ControlledRunner | None = None):
     controlled = runner or ControlledRunner(settings.command_timeout_seconds)
     foundry = FoundryRunner(controlled)
-    red_team = RedTeam(foundry, OpenAIRedTeam(settings.red_team_model))
-    blue_team = BlueTeam(OllamaBlueTeam(settings.ollama_host, settings.blue_team_model))
+    if settings.llm_provider == "gemini":
+        red_blue_provider = GeminiProvider(settings.gemini_model)
+    elif settings.llm_provider == "openai":
+        red_blue_provider = OpenAIRedTeam(settings.red_team_model)
+    else:
+        red_blue_provider = OllamaBlueTeam(settings.ollama_host, settings.blue_team_model)
+    red_team = RedTeam(foundry, red_blue_provider)
+    blue_team = BlueTeam(red_blue_provider)
     judge = Judge(foundry)
 
     def ingest(state: RuntimeState) -> RuntimeState:
@@ -55,18 +61,18 @@ def build_workflow(runner: ControlledRunner | None = None):
         return state
 
     def scout_node(state: RuntimeState) -> RuntimeState:
-        scout = Scout(MockProvider() if state.mock_mode else GeminiScout(), controlled)
+        scout = Scout(MockProvider() if state.mock_mode else GeminiScout(settings.scout_model), controlled)
         state = scout.analyze(state)
-        complete = bool(state.analyzer_runs) and all(r.status == "completed" for r in state.analyzer_runs)
+        # A bounded Mythril sample is intentional: it prevents a large multi-contract
+        # corpus from turning a normal scan into an unbounded symbolic-execution job.
+        # Only actual tool failures make the Scout coverage incomplete.
+        complete = bool(state.analyzer_runs) and all(
+            r.status in {"completed", "skipped"} for r in state.analyzer_runs
+        )
         if state.scout_only:
             state.final_verification_state = "scout_complete" if complete else "scout_incomplete"
         elif not state.findings:
             state.final_verification_state = "no_candidates" if complete else "analysis_incomplete"
-        elif any(f.source != "local-heuristic" for f in state.findings) and not any(
-            f.source == "local-heuristic" for f in state.findings
-        ):
-            state.final_verification_state = "human_review_required"
-            state.feedback.append("Real analyzer candidates require general PoC synthesis; fixture-only Red Team is not applicable.")
         return state
 
     def route_after_scout(state: RuntimeState) -> str:

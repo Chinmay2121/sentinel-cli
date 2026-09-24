@@ -30,4 +30,4 @@ Slither JSON contributes detector, impact, confidence, and locations. Mythril JS
 
 ## What is incomplete?
 
-Arbitrary PoC generation, RAG or knowledge-graph repair, cross-contract reasoning, broad benchmark evaluation, Medusa/Echidna integration, database services, authentication, and production telemetry are future work.
+Arbitrary PoC generation, cross-contract reasoning, broad benchmark evaluation, Medusa/Echidna integration, database services, authentication, and production telemetry are future work.

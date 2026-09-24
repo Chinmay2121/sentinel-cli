@@ -87,6 +87,19 @@ def test_empty_success_does_not_create_fake_findings(project):
     assert all(r.status == "completed" for r in bundle.runs)
 
 
+def test_slither_vendored_dependency_findings_are_excluded_from_project_audit(project):
+    payload = slither_payload()
+    payload["results"]["detectors"].append({
+        "check": "incorrect-exp", "impact": "High", "confidence": "High",
+        "description": "Vendored math implementation uses a deliberate xor operation",
+        "elements": [{"type": "function", "name": "mulDiv", "source_mapping": {
+            "filename_relative": "lib/vendor/Math.sol", "lines": [9],
+        }}],
+    })
+    bundle = run_scout_tools(project, AnalyzerRunner(slither=payload))
+    assert [finding.file for finding in bundle.findings] == ["src/nested/Vault.sol", "src/nested/Vault.sol"]
+
+
 @pytest.mark.parametrize("raw", ['not json', '[]', '{"success":false}', '{"success":true,"issues":{}}'])
 def test_invalid_mythril_output_rejected(project, raw):
     with pytest.raises((ValueError, TypeError)):
@@ -126,7 +139,8 @@ def test_explicit_compiler_path_is_passed_only_to_mythril(project, tmp_path):
     runner = AnalyzerRunner()
     run_scout_tools(project, runner, solc_binary=compiler)
     assert "--solv" not in runner.commands[1]
-    assert runner.env == {"SOLC": str(compiler.resolve())}
+    assert runner.env and runner.env["SOLC"] == str(compiler.resolve())
+    assert "MYTHRIL_DIR" in runner.env
 
 
 def test_missing_tools_are_reported_without_normal_mode_heuristics(project):
@@ -164,6 +178,17 @@ def test_scout_passes_real_evidence_to_provider(project):
     assert not state.exploit_confirmed
 
 
+def test_scout_only_does_not_call_the_llm_provider(project):
+    class FailingProvider(MockProvider):
+        def generate(self, prompt):
+            raise AssertionError("Scout-only must not call an LLM")
+    state = Scout(FailingProvider(), AnalyzerRunner()).analyze(
+        RuntimeState(project_path=str(project), scout_only=True)
+    )
+    assert state.findings
+    assert not state.scout_results
+
+
 def test_workflow_scout_only_does_not_write_sources_or_run_exploits(project):
     runner = AnalyzerRunner()
     result = build_workflow(runner).invoke(RuntimeState(project_path=str(project), mock_mode=True, scout_only=True))
@@ -173,9 +198,18 @@ def test_workflow_scout_only_does_not_write_sources_or_run_exploits(project):
     assert (project / "src/nested/Vault.sol").read_text() == "contract Vault {}"
 
 
-def test_real_findings_do_not_enter_fixture_only_red_team(project):
+def test_workflow_accepts_intentionally_bounded_mythril_sampling(project):
+    for index in range(10):
+        (project / "src" / f"Source{index}.sol").write_text(f"contract Source{index} {{}}")
+    runner = AnalyzerRunner()
+    result = build_workflow(runner).invoke(RuntimeState(project_path=str(project), mock_mode=True, scout_only=True))
+    assert result["final_verification_state"] == "scout_complete"
+    assert result["analyzer_runs"][-1].status == "skipped"
+
+
+def test_real_findings_do_not_claim_verification_without_a_confirmed_poc(project):
     result = build_workflow(AnalyzerRunner()).invoke(RuntimeState(project_path=str(project), mock_mode=True))
-    assert result["final_verification_state"] == "human_review_required"
+    assert result["final_verification_state"] in {"finding_discarded", "human_review_required"}
     assert not result["exploit_confirmed"]
 
 
@@ -217,6 +251,7 @@ def test_cli_incomplete_scan_writes_honest_json(project, tmp_path, monkeypatch):
     result = CliRunner().invoke(app, ["scan", str(project), "--scout-only", "--mock", "--output", str(output)])
     assert result.exit_code == 2
     assert "scout_incomplete" in result.output
+    assert next(output.glob("*.md")).is_file()
     ledger = json.loads(next(path for path in output.glob("*.json") if not path.name.endswith("__summary.json")).read_text())
     assert ledger["final_verification_state"] == "scout_incomplete"
     assert not ledger["exploit_confirmed"]

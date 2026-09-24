@@ -24,8 +24,8 @@ class ControlledRunner:
         cwd = cwd.resolve()
         if not cwd.is_dir():
             raise ValueError(f"Working directory does not exist: {cwd}")
-        if env is not None and set(env) - {"SOLC", "SOLC_VERSION"}:
-            raise ValueError("Only compiler environment overrides are allowed")
+        if env is not None and set(env) - {"SOLC", "SOLC_VERSION", "MYTHRIL_DIR"}:
+            raise ValueError("Only compiler environment and Mythril workspace overrides are allowed")
         started = time.monotonic()
         try:
             completed = subprocess.run(

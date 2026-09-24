@@ -6,7 +6,7 @@ Sentinel is a local, defensive research prototype for Foundry projects. It combi
 
 Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. Four deliberately vulnerable fixtures have executable proof-of-concepts, repairs, and Forge regression gates: reentrancy, missing access control, `tx.origin` authorization, and unchecked low-level calls. Every scan copies the project to an isolated temporary workspace, so Sentinel writes a patch diff without changing the source project.
 
-General PoC generation, retrieval-backed repair, benchmark-scale evaluation, and the distributed storage design from the PPT remain future work. Real analyzer candidates that do not match the two reviewed fixture templates stop for human review rather than receiving an unrelated patch.
+General PoC generation, benchmark-scale evaluation, and distributed storage remain future work. Real analyzer candidates that do not match the four reviewed fixture templates stop for human review rather than receiving an unrelated patch.
 
 See [Scout setup and limitations](docs/SCOUT_INTEGRATION.md), [implementation plan](docs/IMPLEMENTATION_PLAN.md), and [requirement matrix](docs/REQUIREMENT_TRACEABILITY.md).
 
@@ -59,18 +59,66 @@ Read the report's **Pipeline Timeline** first. A candidate is only an initial si
 
 Use `--scout-only` for evidence collection without PoC or repair. Start the local dashboard and API with `make serve`, then open `http://127.0.0.1:8000`.
 
-## SmartBugs Curated evaluation dataset
+## Modern Solidity 0.8.x challenge corpus
 
-Download the annotated SmartBugs Curated Solidity dataset and build Sentinel's readable benchmark manifest with:
+`datasets/damn-vulnerable-defi` contains Damn Vulnerable DeFi, a Foundry-based corpus of realistic intentionally vulnerable DeFi challenges. Its source contracts use Solidity `0.8.25`, so install that compiler before running it:
 
 ```bash
-make download-smartbugs
-make prepare-smartbugs
+solc-select install 0.8.25
+solc-select use 0.8.25
+# Confirm Foundry, Slither, and Mythril are installed and on PATH.
+forge --version
+slither --version
+myth version
+make test-damn-vulnerable-defi
+make scan-damn-vulnerable-defi
 ```
 
-The dataset is stored in `datasets/smartbugs-curated` and intentionally excluded from Git. The generated `datasets/manifests/smartbugs-curated.json` records each source file, its expected vulnerability category, and the dataset's annotated vulnerable lines. SmartBugs files are benchmark cases for Scout detection; they are not assumed to have a safe generic exploit or patch. Use the four `examples/` projects for the complete PoC → patch → Judge demonstration.
+`make test-damn-vulnerable-defi` compiles the corpus and is the health check for this repository integration. `make scan-damn-vulnerable-defi` runs Slither over the complete project and Mythril over one bounded source sample, then writes the Markdown report, raw ledger, and readable summary JSON under `reports/damn-vulnerable-defi/`. It can take about a minute; wait until the CLI prints `Audit report:` before looking for the files. The corpus's default challenge tests intentionally fail until each attack is solved; run them only with `make test-damn-vulnerable-defi-challenges` when you want to see that baseline:
 
-Run five dataset cases first with `make scan-smartbugs`. It creates one report folder per contract under `reports/smartbugs/` and an overall `smartbugs-scan-summary.json`. To test one class, for example reentrancy, use `.venv/bin/python scripts/scan_smartbugs.py --category REENTRANCY --limit 5`. `make scan-smartbugs-all` processes all 143 cases and can take a long time, especially when Mythril is enabled.
+```bash
+make test-damn-vulnerable-defi-challenges
+```
+
+The make target creates the local compiler shim used by Foundry and Mythril from the compiler installed by `solc-select`; set `DVD_SOLC=/absolute/path/to/solc` if yours is elsewhere. Slither analyzes the project sources and excludes vendored `lib/` code from the audit report; Mythril symbolically analyzes the bounded source sample selected by `MYTHRIL_MAX_SOURCES` (default `10`). These are realistic multi-contract scenarios for detection and analysis; the four `examples/` projects remain the reviewed end-to-end PoC → patch → Judge demonstrations.
+
+`--scout-only` is evidence collection only. It intentionally does **not** create `.patched.sol` or exploit-test files, because it does not enter Red Team, Blue Team, or Judge. Use one of the four supported end-to-end examples to produce a verified patch artifact:
+
+```bash
+make scan-reentrancy
+make scan-access-control
+make scan-tx-origin
+make scan-unchecked-call
+```
+
+Use Google AI Studio to create a Gemini key, then add it to `.env` and select Gemini:
+
+```bash
+GOOGLE_API_KEY=your_key_here
+LLM_PROVIDER=gemini
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Then use the real-data agentic run to take the highest-ranked scanner candidate through Red Team, Blue Team, and Judge:
+
+```bash
+make run-damn-vulnerable-defi-agentic
+```
+
+This command uses the configured provider for PoC and patch drafts and Forge as the mandatory execution gate. It performs one bounded candidate attempt per run to control runtime and API quota. A patched Solidity artifact is saved only when the report outcome is `verified`; a failed PoC, unsafe diff, failed compilation, or failed regression remains an honest review result. Set `LLM_PROVIDER=openai` to use an API-funded OpenAI account, or `LLM_PROVIDER=ollama` to use a local Ollama model.
+
+## Large-scale detection benchmark
+
+FORGE Artifacts is the large-scale audit-derived corpus. Its raw source remains in the ignored `datasets/forge-artifacts/` checkout; Sentinel stores only its compact Solidity-0.8 benchmark manifest in version control.
+
+```bash
+make prepare-forge-artifacts
+make benchmark-forge-artifacts
+```
+
+The resulting `datasets/manifests/forge-artifacts.json` contains a deterministic 500-project Solidity-0.8 subset with source roots, declared compiler versions, audit-derived CWE labels, and locations for evaluation. It is for detection metrics, not automatic patch verification: these standalone projects do not share a uniform Foundry test oracle. Damn Vulnerable DeFi and DeFiVulnLabs supply the separate executable PoC/patch verification corpus.
+
+`make benchmark-forge-artifacts` runs a bounded 10-case smoke benchmark. Use `make benchmark-forge-artifacts-full` for all 500 cases; it can take hours. Reports record completed, skipped, timed-out, and detected cases. Precision and F1 are intentionally withheld until labeled clean controls are added.
 
 ## State ledger and safety
 
@@ -100,4 +148,4 @@ The GitHub Actions workflow installs Foundry and invokes Sentinel against the re
 
 ## Evaluation and limitations
 
-Latency, false-positive reduction, gas comparison, and the MPP1 five-minute/30-50% targets are measurements to collect, not claims made by this repository. Gas metrics are reported unavailable when Foundry does not provide a reliable comparison. The current implementation demonstrates isolated single-project workflows and two reviewed vulnerability classes. Cross-contract reasoning, generalized PoC generation, retrieval-backed repair, and broad benchmark coverage remain research extensions.
+Latency, false-positive reduction, gas comparison, and the MPP1 five-minute/30-50% targets are measurements to collect, not claims made by this repository. Gas metrics are reported unavailable when Foundry does not provide a reliable comparison. The current implementation demonstrates isolated single-project workflows and four reviewed vulnerability classes. Cross-contract reasoning, generalized PoC generation, and broad benchmark coverage remain research extensions.

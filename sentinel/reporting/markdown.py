@@ -21,7 +21,9 @@ def _scout_summary(state: RuntimeState) -> str:
     has_fixture = any(finding.source == "local-heuristic" for finding in state.findings)
     if state.mock_mode and has_fixture:
         return "fixture candidate selected for the deterministic demonstration"
-    if state.analyzer_runs and all(run.status == "completed" for run in state.analyzer_runs):
+    if state.analyzer_runs and all(run.status in {"completed", "skipped"} for run in state.analyzer_runs):
+        if any(run.status == "skipped" and run.tool == "mythril" for run in state.analyzer_runs):
+            return "Slither completed and Mythril completed its configured bounded sample"
         return "live scanner analysis completed"
     return "live scanner coverage is incomplete"
 
@@ -81,7 +83,7 @@ def render_report(state: RuntimeState) -> str:
         "",
         "## Proposed Patch",
         f"- Purpose: {state.patch_artifact.rationale if state.patch_artifact else 'No patch was generated.'}",
-        *([f"- Saved patched Solidity file: `{Path(path).name}`" for path in state.report_artifacts if ".patched.sol" in Path(path).name] or []),
+        *([f"- Saved patched Solidity file: `{Path(path).name}`" for path in state.report_artifacts if ".patch.sol" in Path(path).name] or []),
         "```diff",
         state.patch_diff or "No patch was generated.",
         "```",
@@ -119,7 +121,7 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
         state.report_artifacts.append(str(exploit_path))
     for relative, source in state.patched_source.items():
         name = Path(Path(relative).name).stem
-        patched_path = output_dir / f"{stem}__{name}.patched.sol"
+        patched_path = output_dir / f"{stem}__{name}.patch.sol"
         patched_path.write_text(source, encoding="utf-8")
         state.report_artifacts.append(str(patched_path))
     report_path.write_text(render_report(state), encoding="utf-8")
@@ -144,7 +146,7 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
         "patch": {
             "purpose": state.patch_artifact.rationale if state.patch_artifact else None,
             "changed_file": state.patch_artifact.original_file if state.patch_artifact else None,
-            "patched_solidity_files": [Path(path).name for path in state.report_artifacts if ".patched.sol" in Path(path).name],
+            "patched_solidity_files": [Path(path).name for path in state.report_artifacts if ".patch.sol" in Path(path).name],
         },
         "verification": {
             "build_passed": state.judge_result.build_passed if state.judge_result else False,
@@ -152,4 +154,32 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
             "regression_passed": state.judge_result.regression_passed if state.judge_result else False,
         },
     }, indent=2) + "\n", encoding="utf-8")
+    # One concise record per candidate keeps a large Scout scan reviewable without
+    # pretending every candidate has an approved patch.
+    findings_dir = output_dir / f"{stem}__findings"
+    findings_dir.mkdir(exist_ok=True)
+    for index, finding in enumerate(state.findings, start=1):
+        contract = Path(finding.file).stem or "contract"
+        safe_id = "".join(char if char.isalnum() or char in "-_" else "-" for char in finding.id)
+        finding_stem = f"{index:04d}__{contract}__{safe_id}"
+        is_selected = finding.id == state.candidate_id
+        patch_name = next((Path(path).name for path in state.report_artifacts if ".patch.sol" in Path(path).name), None) if is_selected else None
+        record = {
+            "finding_id": finding.id,
+            "type": finding.detector,
+            "severity": finding.severity,
+            "location": {"file": finding.file, "line": finding.line},
+            "what_was_observed": finding.description,
+            "evidence": finding.evidence,
+            "pipeline_status": "selected_for_agentic_validation" if is_selected else "scout_candidate",
+            "patch_file": patch_name,
+        }
+        (findings_dir / f"{finding_stem}.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        lines = [f"# {contract}: {finding.detector}", "", f"- **Severity:** {finding.severity}",
+                 f"- **Location:** `{finding.file}:{finding.line or 'unknown'}`", "", "## Observation", finding.description,
+                 "", "## Evidence", *[f"- {item}" for item in finding.evidence], "", "## Status",
+                 "Selected for Gemini/Forge validation." if is_selected else "Scout candidate; no exploit or patch has been approved yet."]
+        if patch_name:
+            lines.extend(["", f"Verified patch artifact: `{patch_name}`"])
+        (findings_dir / f"{finding_stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report_path

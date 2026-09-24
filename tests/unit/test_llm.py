@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from sentinel.llm.gemini import GeminiScout
+from sentinel.llm.gemini import GeminiProvider, GeminiScout
 from sentinel.llm.ollama import OllamaBlueTeam
 from sentinel.llm.openai import OpenAIRedTeam
 
@@ -25,6 +25,13 @@ def test_gemini_transport_extracts_text(monkeypatch) -> None:
     client = JsonClient({"candidates": [{"content": {"parts": [{"text": "candidate"}]}}]})
     assert GeminiScout(client=client).generate("prompt") == "candidate"
     assert client.calls[0][1]["headers"]["x-goog-api-key"] == "test"
+
+
+def test_gemini_provider_accepts_an_agent_model(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test")
+    client = JsonClient({"candidates": [{"content": {"parts": [{"text": "draft"}]}}]})
+    assert GeminiProvider("gemini-3.5-flash-lite", client=client).generate("prompt") == "draft"
+    assert "/models/gemini-3.5-flash-lite:generateContent" in client.calls[0][0]
 
 
 def test_openai_transport_uses_nonstored_responses(monkeypatch) -> None:
