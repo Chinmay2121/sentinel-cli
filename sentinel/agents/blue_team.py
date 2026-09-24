@@ -19,16 +19,25 @@ class BlueTeam:
         original = path.read_text(encoding="utf-8")
         if finding.id == "heuristic-reentrancy":
             old = '''        uint256 amount = balances[msg.sender];
-        (bool sent,) = msg.sender.call{value: amount}("");
+        (bool sent,) = msg.sender.call{value: amount}(""); // reentrancy demo
         require(sent, "send failed");
         balances[msg.sender] = 0;'''
             new = '''        uint256 amount = balances[msg.sender];
         balances[msg.sender] = 0;
-        (bool sent,) = msg.sender.call{value: amount}("");
+        (bool sent,) = msg.sender.call{value: amount}(""); // reentrancy demo
         require(sent, "send failed");'''
-        else:
+        elif finding.id == "heuristic-access-control":
             old = "function sweep(address payable recipient) external {"
             new = "function sweep(address payable recipient) external {\n        require(msg.sender == owner, \"not owner\");"
+        elif finding.id == "heuristic-tx-origin":
+            old = "require(tx.origin == owner, \"not owner\");"
+            new = "require(msg.sender == owner, \"not owner\");"
+        elif finding.id == "heuristic-unchecked-call":
+            old = "        recipient.call{value: amount}(\"\"); // unchecked low-level call"
+            new = "        (bool sent,) = recipient.call{value: amount}(\"\");\n        require(sent, \"send failed\");"
+        else:
+            state.feedback.append("Blue Team has no reviewed patch template for this candidate.")
+            return state
         if old not in original:
             state.feedback.append("Blue Team could not locate a minimal patch anchor")
             return state

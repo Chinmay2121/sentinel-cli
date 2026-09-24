@@ -12,5 +12,5 @@ def test_workflow_reaches_a_terminal_recorded_state(tmp_path, monkeypatch) -> No
         raise FileNotFoundError("tools unavailable")
     monkeypatch.setattr("sentinel.runner.subprocess.run", missing)
     result = build_workflow().invoke(RuntimeState(project_path=str(project), mock_mode=True))
-    assert result["final_verification_state"] == "finding_discarded"
+    assert result["final_verification_state"] == "execution_unavailable"
     assert not result["exploit_confirmed"]

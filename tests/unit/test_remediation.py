@@ -30,8 +30,14 @@ def execution(code: int, *, timed_out: bool = False) -> ExecutionResult:
 
 
 def state_for(tmp_path: Path, identifier: str) -> RuntimeState:
-    file = "src/VulnerableVault.sol" if identifier == "heuristic-reentrancy" else "src/VulnerableTreasury.sol"
-    source = (Path(__file__).parents[2] / "examples" / ("vulnerable_reentrancy" if "reentrancy" in identifier else "vulnerable_access_control") / file).read_text()
+    fixtures = {
+        "heuristic-reentrancy": ("vulnerable_reentrancy", "src/VulnerableVault.sol"),
+        "heuristic-access-control": ("vulnerable_access_control", "src/VulnerableTreasury.sol"),
+        "heuristic-tx-origin": ("vulnerable_tx_origin", "src/TxOriginWallet.sol"),
+        "heuristic-unchecked-call": ("vulnerable_unchecked_call", "src/UncheckedCallWallet.sol"),
+    }
+    fixture, file = fixtures[identifier]
+    source = (Path(__file__).parents[2] / "examples" / fixture / file).read_text()
     target = tmp_path / file
     target.parent.mkdir(parents=True)
     target.write_text(source)
@@ -47,6 +53,12 @@ def test_fixture_pocs_assert_real_security_impact(tmp_path: Path) -> None:
     assert RedTeam(FoundryRunner(None))._fixture_test("other", "src/C.sol") is None
 
 
+def test_new_fixture_templates_cover_tx_origin_and_unchecked_call() -> None:
+    red_team = RedTeam(FoundryRunner(None))
+    assert "tx.origin phishing was blocked" in red_team._fixture_test("heuristic-tx-origin", "src/TxOriginWallet.sol")
+    assert "unchecked call did not lose accounting credit" in red_team._fixture_test("heuristic-unchecked-call", "src/UncheckedCallWallet.sol")
+
+
 def test_blue_team_moves_effect_before_external_interaction(tmp_path: Path) -> None:
     state = state_for(tmp_path, "heuristic-reentrancy")
     BlueTeam().generate_and_apply(state)
@@ -59,6 +71,15 @@ def test_blue_team_adds_treasury_authorization(tmp_path: Path) -> None:
     state = state_for(tmp_path, "heuristic-access-control")
     BlueTeam().generate_and_apply(state)
     assert 'require(msg.sender == owner, "not owner")' in (tmp_path / "src/VulnerableTreasury.sol").read_text()
+
+
+def test_blue_team_patches_tx_origin_and_unchecked_call(tmp_path: Path) -> None:
+    tx_origin = state_for(tmp_path / "tx-origin", "heuristic-tx-origin")
+    BlueTeam().generate_and_apply(tx_origin)
+    assert "require(msg.sender == owner" in (tmp_path / "tx-origin/src/TxOriginWallet.sol").read_text()
+    unchecked = state_for(tmp_path / "unchecked", "heuristic-unchecked-call")
+    BlueTeam().generate_and_apply(unchecked)
+    assert 'require(sent, "send failed")' in (tmp_path / "unchecked/src/UncheckedCallWallet.sol").read_text()
 
 
 def test_judge_requires_a_real_forge_test_failure(tmp_path: Path) -> None:

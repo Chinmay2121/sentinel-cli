@@ -110,7 +110,9 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
     if not paths:
         bundle.runs.append(AnalyzerRun(tool="mythril", target=".", status="skipped",
                                        diagnostics=["No Solidity source files found"]))
-    if demo_fallback and not bundle.findings:
+    # Mock mode is an explicitly labeled deterministic fixture workflow. Keep its
+    # reviewed hint even when installed analyzers also produce unrelated candidates.
+    if demo_fallback:
         bundle.findings.extend(_demo_findings(project, paths))
     bundle.findings = rank_and_deduplicate(bundle.findings)
     return bundle
@@ -123,7 +125,7 @@ def _demo_findings(project: Path, paths: list[Path]) -> list[VulnerabilityFindin
         source = path.read_text(encoding="utf-8")
         call = source.find(".call{")
         effect = source.find("balances[msg.sender] = 0;")
-        if call >= 0 and effect > call:
+        if (path.name in {"Vault.sol", "VulnerableVault.sol"} or "// reentrancy demo" in source) and call >= 0 and effect > call:
             findings.append(VulnerabilityFinding(
                 id="heuristic-reentrancy", source="local-heuristic", sources=["local-heuristic"],
                 detector="external-call-order", severity="high", confidence="low", confidence_score=0.3,
@@ -136,6 +138,23 @@ def _demo_findings(project: Path, paths: list[Path]) -> list[VulnerabilityFindin
                 id="heuristic-access-control", source="local-heuristic", sources=["local-heuristic"],
                 detector="missing-authorization", severity="critical", confidence="low", confidence_score=0.3,
                 file=path.relative_to(project).as_posix(), description="Demo heuristic: sweep lacks a caller check.",
+                evidence=["Demo-only lexical pattern; not a Slither or Mythril result"],
+            ))
+        if "tx.origin" in source:
+            findings.append(VulnerabilityFinding(
+                id="heuristic-tx-origin", source="local-heuristic", sources=["local-heuristic"],
+                detector="tx-origin-authentication", severity="high", confidence="low", confidence_score=0.3,
+                file=path.relative_to(project).as_posix(), line=source[:source.find("tx.origin")].count("\n") + 1,
+                description="Demo heuristic: authorization uses tx.origin instead of msg.sender.",
+                evidence=["Demo-only lexical pattern; not a Slither or Mythril result"],
+            ))
+        if ".call{" in source and "unchecked low-level call" in source:
+            call = source.find(".call{")
+            findings.append(VulnerabilityFinding(
+                id="heuristic-unchecked-call", source="local-heuristic", sources=["local-heuristic"],
+                detector="unchecked-low-level-call", severity="medium", confidence="low", confidence_score=0.3,
+                file=path.relative_to(project).as_posix(), line=source[:call].count("\n") + 1,
+                description="Demo heuristic: low-level call result is ignored.",
                 evidence=["Demo-only lexical pattern; not a Slither or Mythril result"],
             ))
     return findings

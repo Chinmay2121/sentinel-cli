@@ -4,6 +4,14 @@ from pathlib import Path
 from sentinel.schemas.state import RuntimeState
 
 
+def _tool_message(run) -> str:
+    if run.status == "completed":
+        return f"{run.tool} finished and reported {run.finding_count} candidate(s)."
+    detail = next((item for item in run.diagnostics if item), "No diagnostic was returned.")
+    compact = " ".join(detail.splitlines()[:2])[:360]
+    return f"{run.tool} did not complete ({run.status}): {compact}"
+
+
 def render_report(state: RuntimeState) -> str:
     lines = [
         "# Sentinel Security Audit",
@@ -16,6 +24,12 @@ def render_report(state: RuntimeState) -> str:
         f"- Source files: {len(state.source_files)}",
         f"- Runtime: {state.gas_metrics.get('duration_seconds', 'not measured')}",
         "",
+        "## Pipeline Timeline",
+        f"- **1. Scout:** {'completed' if state.analyzer_runs and all(run.status == 'completed' for run in state.analyzer_runs) else 'incomplete'} — {len(state.findings)} candidate(s) recorded.",
+        f"- **2. Red Team:** {'PoC confirmed' if state.exploit_confirmed else 'not confirmed'} — {'exploit test created' if state.exploit_artifact else 'no exploit test created'}.",
+        f"- **3. Blue Team:** {'patch proposed' if state.patch_artifact else 'no patch proposed'}.",
+        f"- **4. Judge:** {'verified' if state.judge_result and state.judge_result.verified else 'not run or not verified'}.",
+        "",
         "## Static Analysis Findings",
         "| ID | Source | Severity | Location | Status |",
         "| --- | --- | --- | --- | --- |",
@@ -26,10 +40,10 @@ def render_report(state: RuntimeState) -> str:
     lines.extend([
         "",
         "## Analyzer Coverage",
-        *[f"- {run.tool} / {run.target}: **{run.status}**, {run.finding_count} findings" for run in state.analyzer_runs],
+        *[f"- **{run.tool}** / `{run.target}`: {_tool_message(run)}" for run in state.analyzer_runs],
         "",
         "## Diagnostics",
-        *[f"- {message}" for message in state.feedback],
+        *([f"- {message}" for message in state.feedback] or ["- No workflow diagnostics."]),
         "",
         "## Semantic Scout Analysis",
         *[f"- {result}" for result in state.scout_results],
@@ -56,6 +70,12 @@ def render_report(state: RuntimeState) -> str:
         "",
         "## Gas Comparison",
         "Gas comparison unavailable for this execution unless measured by Foundry.",
+        "",
+        "## How to read this report",
+        "- A **candidate** is a scanner or fixture pattern, not a proven exploit.",
+        "- **confirmed** means the Red Team's Forge test reproduced the impact.",
+        "- **verified** means the Judge built the patched copy, the exploit test failed, and the other tests passed.",
+        "- **execution_unavailable** or **analysis_incomplete** means install/configure the listed local tool before treating the absence of findings as meaningful.",
         "",
         "## Final Outcome",
         f"**{state.final_verification_state}**",

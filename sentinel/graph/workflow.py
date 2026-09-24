@@ -56,7 +56,9 @@ def build_workflow(runner: ControlledRunner | None = None):
             state.final_verification_state = "scout_complete" if complete else "scout_incomplete"
         elif not state.findings:
             state.final_verification_state = "no_candidates" if complete else "analysis_incomplete"
-        elif any(f.source != "local-heuristic" for f in state.findings):
+        elif any(f.source != "local-heuristic" for f in state.findings) and not any(
+            f.source == "local-heuristic" for f in state.findings
+        ):
             state.final_verification_state = "human_review_required"
             state.feedback.append("Real analyzer candidates require general PoC synthesis; fixture-only Red Team is not applicable.")
         return state
@@ -93,6 +95,8 @@ def build_workflow(runner: ControlledRunner | None = None):
         return result
 
     def route_after_exploit(state: RuntimeState) -> str:
+        if state.final_verification_state == "execution_unavailable":
+            return "report"
         return "blue_team" if state.exploit_confirmed else "discard"
 
     def route_after_judge(state: RuntimeState) -> str:
@@ -120,7 +124,7 @@ def build_workflow(runner: ControlledRunner | None = None):
     graph.add_conditional_edges("ingest", lambda state: "report" if state.final_verification_state == "invalid_project" else "static_analysis")
     graph.add_edge("static_analysis", "scout")
     graph.add_conditional_edges("scout", route_after_scout, {"report": "report", "red_team": "red_team"})
-    graph.add_conditional_edges("red_team", route_after_exploit, {"blue_team": "blue_team", "discard": "discard"})
+    graph.add_conditional_edges("red_team", route_after_exploit, {"blue_team": "blue_team", "discard": "discard", "report": "report"})
     graph.add_edge("discard", "report")
     graph.add_edge("blue_team", "judge")
     graph.add_conditional_edges("judge", route_after_judge, {"blue_team": "blue_team", "report": "report"})

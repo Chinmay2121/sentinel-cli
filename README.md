@@ -4,7 +4,7 @@ Sentinel is a local, defensive research prototype for Foundry projects. It combi
 
 ## Current implementation status
 
-Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. The two supplied fixtures have executable proof-of-concepts, repairs, and Forge regression gates. Every scan copies the project to an isolated temporary workspace, so Sentinel writes a patch diff without changing the source project.
+Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. Four deliberately vulnerable fixtures have executable proof-of-concepts, repairs, and Forge regression gates: reentrancy, missing access control, `tx.origin` authorization, and unchecked low-level calls. Every scan copies the project to an isolated temporary workspace, so Sentinel writes a patch diff without changing the source project.
 
 General PoC generation, retrieval-backed repair, benchmark-scale evaluation, and the distributed storage design from the PPT remain future work. Real analyzer candidates that do not match the two reviewed fixture templates stop for human review rather than receiving an unrelated patch.
 
@@ -49,9 +49,13 @@ source .venv/bin/activate
 pip install '.[dev]'
 sentinel scan ./examples/vulnerable_reentrancy --mock
 sentinel scan ./examples/vulnerable_access_control --mock
+sentinel scan ./examples/vulnerable_tx_origin --mock
+sentinel scan ./examples/vulnerable_unchecked_call --mock
 ```
 
 The command writes Markdown and JSON reports under `reports/`. `--mock` selects the deterministic Scout provider and enables clearly labeled fixture heuristics when external analyzers are unavailable; it does not fabricate Forge results. The original target source remains unchanged.
+
+Read the report's **Pipeline Timeline** first. A candidate is only an initial signal; it becomes confirmed when the Red Team's Forge test proves the impact. A final `verified` result means the Judge built the patched copy, saw the exploit test fail, and saw all other tests pass. If the state is `execution_unavailable`, install Foundry and make `forge` available on your `PATH`; scanner errors likewise mean coverage is incomplete, not that the code is safe.
 
 Use `--scout-only` for evidence collection without PoC or repair. Start the local dashboard and API with `make serve`, then open `http://127.0.0.1:8000`.
 
@@ -73,7 +77,7 @@ The Judge routes compiler, exploit-defense, and regression failures back to Blue
 
 ## Examples and testing
 
-The repository includes deliberately vulnerable local examples for reentrancy and access control. They are research fixtures only. Run unit/integration tests with:
+The repository includes deliberately vulnerable local examples for reentrancy, missing access control, `tx.origin` authorization, and unchecked low-level calls. They are research fixtures only. Run unit/integration tests with:
 
 ```bash
 python -m pytest

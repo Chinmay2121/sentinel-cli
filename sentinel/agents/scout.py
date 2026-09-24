@@ -45,5 +45,6 @@ class Scout:
             state.feedback.append(f"Scout provider unavailable: {exc}")
         for finding in state.findings:
             finding.semantic_context = "Analyzer candidate; empirical confirmation is pending."
-        state.candidate_id = state.findings[0].id if state.findings else None
+        fixture_candidate = next((finding for finding in state.findings if finding.source == "local-heuristic"), None)
+        state.candidate_id = (fixture_candidate.id if state.mock_mode and fixture_candidate else state.findings[0].id if state.findings else None)
         return state

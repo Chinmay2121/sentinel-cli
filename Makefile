@@ -15,3 +15,9 @@ scan-reentrancy:
 
 scan-access-control:
 	sentinel scan ./examples/vulnerable_access_control --mock
+
+scan-tx-origin:
+	sentinel scan ./examples/vulnerable_tx_origin --mock
+
+scan-unchecked-call:
+	sentinel scan ./examples/vulnerable_unchecked_call --mock
