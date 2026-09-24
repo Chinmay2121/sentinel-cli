@@ -50,6 +50,7 @@ class RuntimeState(BaseModel):
     feedback: list[str] = Field(default_factory=list)
     final_verification_state: str = "not_started"
     final_report_path: str | None = None
+    report_artifacts: list[str] = Field(default_factory=list)
 
     def json_ledger(self) -> str:
         return self.model_dump_json(indent=2)

@@ -1,0 +1,155 @@
+{
+  "project_path": "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-smartbugs-pm2mme_r/project",
+  "workspace_path": null,
+  "mock_mode": false,
+  "max_retries": 5,
+  "source_files": [
+    "src/incorrect_constructor_name1.sol"
+  ],
+  "compiler_info": {
+    "command": "/Users/chinmayhegde/Library/Application Support/svm/0.8.20/solc-0.8.20 --version",
+    "output": "solc, the solidity compiler commandline interface\nVersion: 0.8.20+commit.a1b79de6.Darwin.appleclang\n"
+  },
+  "ast_context": {
+    "contracts": [
+      "contract Missing{"
+    ],
+    "functions": [
+      "function IamMissing()",
+      "function () payable {}",
+      "function withdraw()"
+    ],
+    "state_variables": [],
+    "source_locations": []
+  },
+  "natspec_context": {},
+  "slither_result": {
+    "command": [
+      "slither",
+      ".",
+      "--json",
+      "-"
+    ],
+    "cwd": "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project",
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "",
+    "duration_seconds": 0.2812353749759495,
+    "timed_out": false,
+    "success": false
+  },
+  "mythril_results": [
+    {
+      "command": [
+        "/Users/chinmayhegde/.local/share/uv/tools/mythril/bin/myth",
+        "analyze",
+        "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project/src/incorrect_constructor_name1.sol",
+        "-o",
+        "json",
+        "--no-onchain-data",
+        "--execution-timeout",
+        "60",
+        "--transaction-count",
+        "2",
+        "--solc-json",
+        "/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-solc-s1nca3ka/settings.json"
+      ],
+      "cwd": "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project",
+      "exit_code": 0,
+      "stdout": "{\"success\": false, \"error\": \"Solc experienced a fatal error.\\n\\nParserError: Source file requires different compiler version (current compiler is 0.8.20+commit.a1b79de6.Darwin.appleclang) - note that nightly builds are considered to be strictly less than the released version\\n --> /private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project/src/incorrect_constructor_name1.sol:7:1:\\n  |\\n7 | pragma solidity ^0.4.24;\\n  | ^^^^^^^^^^^^^^^^^^^^^^^^\\n\\n\\nSolidityVersionMismatch: Try adding the option \\\"--solv <version_number>\\\"\\n\", \"issues\": []}\n",
+      "stderr": "/Users/chinmayhegde/.local/share/uv/tools/mythril/lib/python3.12/site-packages/eth/__init__.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  import pkg_resources\n",
+      "duration_seconds": 1.6374946670257486,
+      "timed_out": false,
+      "success": true
+    }
+  ],
+  "analyzer_runs": [
+    {
+      "tool": "slither",
+      "target": ".",
+      "status": "failed",
+      "execution": {
+        "command": [
+          "slither",
+          ".",
+          "--json",
+          "-"
+        ],
+        "cwd": "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "",
+        "duration_seconds": 0.2812353749759495,
+        "timed_out": false,
+        "success": false
+      },
+      "finding_count": 0,
+      "diagnostics": [
+        "Expecting value: line 1 column 1 (char 0)",
+        ""
+      ]
+    },
+    {
+      "tool": "mythril",
+      "target": "src/incorrect_constructor_name1.sol",
+      "status": "failed",
+      "execution": {
+        "command": [
+          "/Users/chinmayhegde/.local/share/uv/tools/mythril/bin/myth",
+          "analyze",
+          "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project/src/incorrect_constructor_name1.sol",
+          "-o",
+          "json",
+          "--no-onchain-data",
+          "--execution-timeout",
+          "60",
+          "--transaction-count",
+          "2",
+          "--solc-json",
+          "/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-solc-s1nca3ka/settings.json"
+        ],
+        "cwd": "/private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project",
+        "exit_code": 0,
+        "stdout": "{\"success\": false, \"error\": \"Solc experienced a fatal error.\\n\\nParserError: Source file requires different compiler version (current compiler is 0.8.20+commit.a1b79de6.Darwin.appleclang) - note that nightly builds are considered to be strictly less than the released version\\n --> /private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project/src/incorrect_constructor_name1.sol:7:1:\\n  |\\n7 | pragma solidity ^0.4.24;\\n  | ^^^^^^^^^^^^^^^^^^^^^^^^\\n\\n\\nSolidityVersionMismatch: Try adding the option \\\"--solv <version_number>\\\"\\n\", \"issues\": []}\n",
+        "stderr": "/Users/chinmayhegde/.local/share/uv/tools/mythril/lib/python3.12/site-packages/eth/__init__.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  import pkg_resources\n",
+        "duration_seconds": 1.6374946670257486,
+        "timed_out": false,
+        "success": true
+      },
+      "finding_count": 0,
+      "diagnostics": [
+        "Solc experienced a fatal error.\n\nParserError: Source file requires different compiler version (current compiler is 0.8.20+commit.a1b79de6.Darwin.appleclang) - note that nightly builds are considered to be strictly less than the released version\n --> /private/var/folders/k1/l4tr1h7905b__vn92tdjzj5c0000gn/T/sentinel-workspace-u772r1fs/project/src/incorrect_constructor_name1.sol:7:1:\n  |\n7 | pragma solidity ^0.4.24;\n  | ^^^^^^^^^^^^^^^^^^^^^^^^\n\n\nSolidityVersionMismatch: Try adding the option \"--solv <version_number>\"\n"
+      ]
+    }
+  ],
+  "scout_only": true,
+  "aderyn_result": null,
+  "findings": [],
+  "scout_results": [],
+  "candidate_id": null,
+  "exploit_source": "",
+  "exploit_artifact": null,
+  "exploit_result": null,
+  "exploit_confirmed": false,
+  "original_source": {
+    "src/incorrect_constructor_name1.sol": "/*\n * @source: https://github.com/trailofbits/not-so-smart-contracts/blob/master/wrong_constructor_name/incorrect_constructor.sol\n * @author: Ben Perez\n * @vulnerable_at_lines: 20\n */\n\npragma solidity ^0.4.24;\n\ncontract Missing{\n    address private owner;\n\n    modifier onlyowner {\n        require(msg.sender==owner);\n        _;\n    }\n\n    // The name of the constructor should be Missing\n    // Anyone can call the IamMissing once the contract is deployed\n    // <yes> <report> ACCESS_CONTROL\n    function IamMissing()\n        public\n    {\n        owner = msg.sender;\n    }\n\n    function () payable {}\n\n    function withdraw()\n        public\n        onlyowner\n    {\n       owner.transfer(this.balance);\n    }\n}\n"
+  },
+  "patched_source": {},
+  "patch_diff": "",
+  "patch_artifact": null,
+  "compilation_result": null,
+  "regression_result": null,
+  "judge_result": null,
+  "gas_metrics": {},
+  "retry_count": 0,
+  "retry_history": [],
+  "feedback": [
+    "Maximum patch retries configured: 5",
+    "slither failed for .; see the JSON ledger for technical details.",
+    "mythril failed for src/incorrect_constructor_name1.sol; see the JSON ledger for technical details.",
+    "Scout provider unavailable: GOOGLE_API_KEY is not configured for the Gemini Scout"
+  ],
+  "final_verification_state": "scout_incomplete",
+  "final_report_path": "reports/smartbugs/access_control--incorrect_constructor_name1/sentinel-report-20260924T075411903231Z.md",
+  "report_artifacts": []
+}

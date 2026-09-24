@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from sentinel.patching.applier import apply_replacement, apply_unified_diff
-from sentinel.reporting.markdown import render_report
+from sentinel.reporting.markdown import render_report, write_report
 from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RuntimeState
 
@@ -61,3 +61,17 @@ def test_report_never_invents_confirmation() -> None:
     report = render_report(state)
     assert "candidate_only" in report
     assert "verified" not in report.split("## Final Outcome", 1)[1]
+
+
+def test_report_writes_readable_solidity_artifacts(tmp_path: Path) -> None:
+    state = RuntimeState(
+        project_path="/tmp/project", candidate_id="demo", exploit_source="contract Exploit {}",
+        patched_source={"src/Contract.sol": "contract Contract {}"},
+    )
+    report_path = write_report(state, tmp_path)
+    artifact_names = {Path(path).name for path in state.report_artifacts}
+    assert report_path.is_file()
+    assert any(name.endswith("__Contract.patched.sol") for name in artifact_names)
+    assert any(name.endswith("__demo.exploit.t.sol") for name in artifact_names)
+    assert "Saved patched Solidity file" in report_path.read_text(encoding="utf-8")
+    assert (tmp_path / f"{report_path.stem}__summary.json").is_file()

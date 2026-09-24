@@ -1,23 +1,37 @@
+PYTHON ?= .venv/bin/python
+
 install:
-	python3 -m pip install '.[dev]'
+	$(PYTHON) -m pip install '.[dev,llm]'
 
 test:
-	python3 -m pytest
+	$(PYTHON) -m pytest
 
 lint:
-	python3 -m ruff check sentinel tests
+	$(PYTHON) -m ruff check sentinel tests
 
 serve:
-	python3 -m sentinel.api
+	$(PYTHON) -m sentinel.api
 
 scan-reentrancy:
-	sentinel scan ./examples/vulnerable_reentrancy --mock
+	$(PYTHON) -m sentinel.cli scan ./examples/vulnerable_reentrancy --mock
 
 scan-access-control:
-	sentinel scan ./examples/vulnerable_access_control --mock
+	$(PYTHON) -m sentinel.cli scan ./examples/vulnerable_access_control --mock
 
 scan-tx-origin:
-	sentinel scan ./examples/vulnerable_tx_origin --mock
+	$(PYTHON) -m sentinel.cli scan ./examples/vulnerable_tx_origin --mock
 
 scan-unchecked-call:
-	sentinel scan ./examples/vulnerable_unchecked_call --mock
+	$(PYTHON) -m sentinel.cli scan ./examples/vulnerable_unchecked_call --mock
+
+download-smartbugs:
+	git clone --depth 1 https://github.com/smartbugs/smartbugs-curated.git datasets/smartbugs-curated
+
+prepare-smartbugs:
+	$(PYTHON) scripts/prepare_smartbugs.py
+
+scan-smartbugs:
+	$(PYTHON) scripts/scan_smartbugs.py --limit 5
+
+scan-smartbugs-all:
+	$(PYTHON) scripts/scan_smartbugs.py --limit 0

@@ -1,0 +1,67 @@
+{
+  "scan_mode": "scout-only",
+  "case_count": 5,
+  "results": [
+    {
+      "id": "access_control--FibonacciBalance",
+      "expected_categories": [
+        "ACCESS_CONTROL"
+      ],
+      "expected_vulnerable_lines": [
+        31,
+        38
+      ],
+      "outcome": "scout_incomplete",
+      "finding_count": 0,
+      "report": "reports/smartbugs/access_control--FibonacciBalance/sentinel-report-20260924T075407873806Z.md"
+    },
+    {
+      "id": "access_control--arbitrary_location_write_simple",
+      "expected_categories": [
+        "ACCESS_CONTROL"
+      ],
+      "expected_vulnerable_lines": [
+        27
+      ],
+      "outcome": "scout_incomplete",
+      "finding_count": 0,
+      "report": "reports/smartbugs/access_control--arbitrary_location_write_simple/sentinel-report-20260924T075409965074Z.md"
+    },
+    {
+      "id": "access_control--incorrect_constructor_name1",
+      "expected_categories": [
+        "ACCESS_CONTROL"
+      ],
+      "expected_vulnerable_lines": [
+        20
+      ],
+      "outcome": "scout_incomplete",
+      "finding_count": 0,
+      "report": "reports/smartbugs/access_control--incorrect_constructor_name1/sentinel-report-20260924T075411903231Z.md"
+    },
+    {
+      "id": "access_control--incorrect_constructor_name2",
+      "expected_categories": [
+        "ACCESS_CONTROL"
+      ],
+      "expected_vulnerable_lines": [
+        18
+      ],
+      "outcome": "scout_incomplete",
+      "finding_count": 0,
+      "report": "reports/smartbugs/access_control--incorrect_constructor_name2/sentinel-report-20260924T075413887382Z.md"
+    },
+    {
+      "id": "access_control--incorrect_constructor_name3",
+      "expected_categories": [
+        "ACCESS_CONTROL"
+      ],
+      "expected_vulnerable_lines": [
+        17
+      ],
+      "outcome": "scout_incomplete",
+      "finding_count": 0,
+      "report": "reports/smartbugs/access_control--incorrect_constructor_name3/sentinel-report-20260924T075415977155Z.md"
+    }
+  ]
+}

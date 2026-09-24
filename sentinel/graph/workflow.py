@@ -13,6 +13,8 @@ from sentinel.config import settings
 from sentinel.foundry.runner import FoundryRunner
 from sentinel.llm.gemini import GeminiScout
 from sentinel.llm.mock import MockProvider
+from sentinel.llm.ollama import OllamaBlueTeam
+from sentinel.llm.openai import OpenAIRedTeam
 from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RetryRecord, RuntimeState
 
@@ -20,8 +22,8 @@ from sentinel.schemas.state import RetryRecord, RuntimeState
 def build_workflow(runner: ControlledRunner | None = None):
     controlled = runner or ControlledRunner(settings.command_timeout_seconds)
     foundry = FoundryRunner(controlled)
-    red_team = RedTeam(foundry)
-    blue_team = BlueTeam()
+    red_team = RedTeam(foundry, OpenAIRedTeam(settings.red_team_model))
+    blue_team = BlueTeam(OllamaBlueTeam(settings.ollama_host, settings.blue_team_model))
     judge = Judge(foundry)
 
     def ingest(state: RuntimeState) -> RuntimeState:
@@ -44,8 +46,12 @@ def build_workflow(runner: ControlledRunner | None = None):
 
     def static_analysis(state: RuntimeState) -> RuntimeState:
         project = Path(state.workspace_path or state.project_path)
-        compiler = controlled.run(["solc", "--version"], project)
-        state.compiler_info = {"command": "solc --version", "output": compiler.stdout or compiler.stderr}
+        compiler_command = str(settings.solc_binary) if settings.solc_binary else "solc"
+        compiler = controlled.run([compiler_command, "--version"], project)
+        state.compiler_info = {
+            "command": f"{compiler_command} --version",
+            "output": compiler.stdout or compiler.stderr,
+        }
         return state
 
     def scout_node(state: RuntimeState) -> RuntimeState:
@@ -95,7 +101,7 @@ def build_workflow(runner: ControlledRunner | None = None):
         return result
 
     def route_after_exploit(state: RuntimeState) -> str:
-        if state.final_verification_state == "execution_unavailable":
+        if state.final_verification_state in {"execution_unavailable", "human_review_required"}:
             return "report"
         return "blue_team" if state.exploit_confirmed else "discard"
 

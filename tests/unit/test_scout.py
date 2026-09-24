@@ -217,7 +217,7 @@ def test_cli_incomplete_scan_writes_honest_json(project, tmp_path, monkeypatch):
     result = CliRunner().invoke(app, ["scan", str(project), "--scout-only", "--mock", "--output", str(output)])
     assert result.exit_code == 2
     assert "scout_incomplete" in result.output
-    ledger = json.loads(next(output.glob("*.json")).read_text())
+    ledger = json.loads(next(path for path in output.glob("*.json") if not path.name.endswith("__summary.json")).read_text())
     assert ledger["final_verification_state"] == "scout_incomplete"
     assert not ledger["exploit_confirmed"]
     assert ledger["analyzer_runs"][0]["status"] == "unavailable"

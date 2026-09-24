@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -7,9 +8,22 @@ from sentinel.schemas.state import RuntimeState
 def _tool_message(run) -> str:
     if run.status == "completed":
         return f"{run.tool} finished and reported {run.finding_count} candidate(s)."
-    detail = next((item for item in run.diagnostics if item), "No diagnostic was returned.")
-    compact = " ".join(detail.splitlines()[:2])[:360]
-    return f"{run.tool} did not complete ({run.status}): {compact}"
+    if run.status == "unavailable":
+        return "not available on this machine."
+    if run.status == "timed_out":
+        return "exceeded its time limit."
+    if run.status == "skipped":
+        return "was skipped."
+    return "failed; technical output is retained only in the JSON ledger."
+
+
+def _scout_summary(state: RuntimeState) -> str:
+    has_fixture = any(finding.source == "local-heuristic" for finding in state.findings)
+    if state.mock_mode and has_fixture:
+        return "fixture candidate selected for the deterministic demonstration"
+    if state.analyzer_runs and all(run.status == "completed" for run in state.analyzer_runs):
+        return "live scanner analysis completed"
+    return "live scanner coverage is incomplete"
 
 
 def render_report(state: RuntimeState) -> str:
@@ -25,28 +39,32 @@ def render_report(state: RuntimeState) -> str:
         f"- Runtime: {state.gas_metrics.get('duration_seconds', 'not measured')}",
         "",
         "## Pipeline Timeline",
-        f"- **1. Scout:** {'completed' if state.analyzer_runs and all(run.status == 'completed' for run in state.analyzer_runs) else 'incomplete'} — {len(state.findings)} candidate(s) recorded.",
+        f"- **1. Scout:** {_scout_summary(state)} — {len(state.findings)} candidate(s) recorded.",
         f"- **2. Red Team:** {'PoC confirmed' if state.exploit_confirmed else 'not confirmed'} — {'exploit test created' if state.exploit_artifact else 'no exploit test created'}.",
         f"- **3. Blue Team:** {'patch proposed' if state.patch_artifact else 'no patch proposed'}.",
         f"- **4. Judge:** {'verified' if state.judge_result and state.judge_result.verified else 'not run or not verified'}.",
         "",
-        "## Static Analysis Findings",
-        "| ID | Source | Severity | Location | Status |",
-        "| --- | --- | --- | --- | --- |",
+        "## Findings",
     ]
-    for finding in state.findings:
+    if not state.findings:
+        lines.append("No vulnerability candidates were recorded.")
+    for index, finding in enumerate(state.findings, start=1):
         location = f"{finding.file}:{finding.line}" if finding.file else "unknown"
-        lines.append(f"| {finding.id} | {finding.source} | {finding.severity} | {location} | {finding.status} |")
+        lines.extend([
+            f"### {index}. {finding.detector.replace('-', ' ').title()}",
+            f"- **Severity:** {finding.severity}; **status:** {finding.status}.",
+            f"- **Location:** `{location}`.",
+            f"- **What was observed:** {finding.description}",
+            f"- **Evidence:** {'; '.join(finding.evidence) or 'No additional evidence recorded.'}",
+            "",
+        ])
     lines.extend([
         "",
-        "## Analyzer Coverage",
+        "## Tool Availability",
         *[f"- **{run.tool}** / `{run.target}`: {_tool_message(run)}" for run in state.analyzer_runs],
         "",
-        "## Diagnostics",
+        "## Notes",
         *([f"- {message}" for message in state.feedback] or ["- No workflow diagnostics."]),
-        "",
-        "## Semantic Scout Analysis",
-        *[f"- {result}" for result in state.scout_results],
         "",
         "## Judge Verification",
         f"- Build: {state.judge_result.build_passed if state.judge_result else 'not run'}",
@@ -55,12 +73,15 @@ def render_report(state: RuntimeState) -> str:
         f"- Verified: {state.judge_result.verified if state.judge_result else 'not run'}",
         "",
         "## Exploit Artifact",
-        f"- Test file: {state.exploit_artifact.test_file if state.exploit_artifact else 'not generated'}",
+        f"- Result: {'The exploit was reproduced before patching.' if state.exploit_confirmed else 'No exploit was confirmed.'}",
+        *([f"- Saved test source: `{Path(path).name}`" for path in state.report_artifacts if ".exploit.t.sol" in Path(path).name] or ["- Test source was not saved because no PoC was generated."]),
         "```solidity",
         state.exploit_source or "No exploit source was generated.",
         "```",
         "",
         "## Proposed Patch",
+        f"- Purpose: {state.patch_artifact.rationale if state.patch_artifact else 'No patch was generated.'}",
+        *([f"- Saved patched Solidity file: `{Path(path).name}`" for path in state.report_artifacts if ".patched.sol" in Path(path).name] or []),
         "```diff",
         state.patch_diff or "No patch was generated.",
         "```",
@@ -87,8 +108,48 @@ def render_report(state: RuntimeState) -> str:
 def write_report(state: RuntimeState, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-    report_path = output_dir / f"sentinel-report-{stamp}.md"
-    report_path.write_text(render_report(state), encoding="utf-8")
+    stem = f"sentinel-report-{stamp}"
+    report_path = output_dir / f"{stem}.md"
     state.final_report_path = str(report_path)
+    state.report_artifacts = []
+    if state.exploit_source:
+        candidate = "".join(char if char.isalnum() or char in "-_" else "-" for char in (state.candidate_id or "candidate"))
+        exploit_path = output_dir / f"{stem}__{candidate}.exploit.t.sol"
+        exploit_path.write_text(state.exploit_source, encoding="utf-8")
+        state.report_artifacts.append(str(exploit_path))
+    for relative, source in state.patched_source.items():
+        name = Path(Path(relative).name).stem
+        patched_path = output_dir / f"{stem}__{name}.patched.sol"
+        patched_path.write_text(source, encoding="utf-8")
+        state.report_artifacts.append(str(patched_path))
+    report_path.write_text(render_report(state), encoding="utf-8")
     report_path.with_suffix(".json").write_text(state.json_ledger(), encoding="utf-8")
+    summary_path = output_dir / f"{stem}__summary.json"
+    summary_path.write_text(json.dumps({
+        "outcome": state.final_verification_state,
+        "pipeline": {
+            "scout": _scout_summary(state),
+            "red_team": "exploit confirmed" if state.exploit_confirmed else "exploit not confirmed",
+            "blue_team": "patch proposed" if state.patch_artifact else "no patch proposed",
+            "judge": "verified" if state.judge_result and state.judge_result.verified else "not verified",
+        },
+        "findings": [{
+            "type": finding.detector.replace("-", " "),
+            "severity": finding.severity,
+            "status": finding.status.value,
+            "location": {"file": finding.file, "line": finding.line},
+            "what_was_observed": finding.description,
+            "evidence": finding.evidence,
+        } for finding in state.findings],
+        "patch": {
+            "purpose": state.patch_artifact.rationale if state.patch_artifact else None,
+            "changed_file": state.patch_artifact.original_file if state.patch_artifact else None,
+            "patched_solidity_files": [Path(path).name for path in state.report_artifacts if ".patched.sol" in Path(path).name],
+        },
+        "verification": {
+            "build_passed": state.judge_result.build_passed if state.judge_result else False,
+            "exploit_blocked": state.judge_result.exploit_neutralized if state.judge_result else False,
+            "regression_passed": state.judge_result.regression_passed if state.judge_result else False,
+        },
+    }, indent=2) + "\n", encoding="utf-8")
     return report_path

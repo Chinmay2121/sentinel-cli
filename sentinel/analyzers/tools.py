@@ -67,6 +67,7 @@ def _analyze(tool: str, target: str, command: list[str], project: Path,
 
 def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout: int = 60,
                     transaction_count: int = 2, solc_binary: Path | None = None,
+                    mythril_binary: Path | None = None,
                     demo_fallback: bool = False) -> AnalysisBundle:
     """Run Slither for the project and bounded Mythril analysis for every source file."""
     project = project.resolve()
@@ -92,7 +93,8 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
             solc_settings["viaIR"] = bool(profile["via_ir"])
         settings_file.write_text(json.dumps(solc_settings), encoding="utf-8")
         for path in paths:
-            command = ["myth", "analyze", str(path), "-o", "json", "--no-onchain-data",
+            myth_command = str(mythril_binary.resolve()) if mythril_binary and mythril_binary.is_file() else "myth"
+            command = [myth_command, "analyze", str(path), "-o", "json", "--no-onchain-data",
                        "--execution-timeout", str(mythril_timeout),
                        "--transaction-count", str(transaction_count), "--solc-json", str(settings_file)]
             version = profile.get("solc_version", profile.get("solc"))

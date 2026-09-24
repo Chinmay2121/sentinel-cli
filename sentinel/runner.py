@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import time
 from collections.abc import Mapping, Sequence
@@ -16,7 +17,9 @@ class ControlledRunner:
         self.timeout_seconds = timeout_seconds
 
     def run(self, command: Sequence[str], cwd: Path, env: Mapping[str, str] | None = None) -> ExecutionResult:
-        if not command or Path(command[0]).name not in ALLOWED_COMMANDS:
+        executable = Path(command[0]).name if command else ""
+        allowed_versioned_solc = re.fullmatch(r"solc-\d+\.\d+\.\d+", executable)
+        if not command or (executable not in ALLOWED_COMMANDS and not allowed_versioned_solc):
             raise ValueError(f"Command is not allowlisted: {command!r}")
         cwd = cwd.resolve()
         if not cwd.is_dir():

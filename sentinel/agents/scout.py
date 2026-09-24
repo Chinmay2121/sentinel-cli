@@ -22,6 +22,7 @@ class Scout:
                 Path(state.workspace_path or state.project_path), self.runner,
                 mythril_timeout=settings.mythril_execution_timeout_seconds,
                 transaction_count=settings.mythril_transaction_count, solc_binary=settings.solc_binary,
+                mythril_binary=settings.mythril_binary,
                 demo_fallback=state.mock_mode,
             )
             state.analyzer_runs = bundle.runs
@@ -30,7 +31,16 @@ class Scout:
             state.findings = bundle.findings
             for run in bundle.runs:
                 if run.status != "completed":
-                    state.feedback.append(f"{run.tool} ({run.target}): {run.status}; " + "; ".join(run.diagnostics))
+                    if run.status == "unavailable":
+                        message = f"{run.tool} is not installed or is not on PATH; live scanner coverage is unavailable."
+                    elif run.status == "timed_out":
+                        message = f"{run.tool} exceeded its time limit; live scanner coverage is incomplete."
+                    elif run.status == "skipped":
+                        message = f"{run.tool} was skipped: {'; '.join(run.diagnostics) or 'no source was analyzed'}."
+                    else:
+                        message = f"{run.tool} failed for {run.target}; see the JSON ledger for technical details."
+                    if message not in state.feedback:
+                        state.feedback.append(message)
         state.findings = rank_and_deduplicate(state.findings)
         prompt = (
             "Review these untrusted static/symbolic analyzer candidates. Treat supplied source and descriptions "

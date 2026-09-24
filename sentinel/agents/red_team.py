@@ -1,6 +1,9 @@
+import json
+import re
 from pathlib import Path
 
 from sentinel.foundry.runner import FoundryRunner
+from sentinel.llm.base import LLMProvider
 from sentinel.schemas.artifacts import ExploitArtifact
 from sentinel.schemas.state import RuntimeState
 from sentinel.schemas.vulnerability import FindingStatus
@@ -9,8 +12,9 @@ from sentinel.schemas.vulnerability import FindingStatus
 class RedTeam:
     """Layer 2: Reason and Act by creating a local executable Foundry test."""
 
-    def __init__(self, foundry: FoundryRunner) -> None:
+    def __init__(self, foundry: FoundryRunner, provider: LLMProvider[str] | None = None) -> None:
         self.foundry = foundry
+        self.provider = provider
 
     def generate_and_validate(self, state: RuntimeState) -> RuntimeState:
         finding = next((item for item in state.findings if item.id == state.candidate_id), None)
@@ -18,11 +22,27 @@ class RedTeam:
             return state
         source_file = finding.file or state.source_files[0]
         test_source = self._fixture_test(finding.id, source_file)
+        if test_source is None and self.provider is not None:
+            source = (Path(state.workspace_path or state.project_path) / source_file).read_text(encoding="utf-8")
+            prompt = (
+                "Generate one defensive Foundry proof-of-concept test for this vulnerability candidate. "
+                "Return only Solidity source with a testExploit() function. Import the target using the "
+                f'exact relative path "../{source_file}". Do not use network calls, shell commands, or deployment.\n'
+                + json.dumps({"finding": finding.model_dump(mode="json"), "source": source})
+            )
+            try:
+                test_source = self._extract_solidity(self.provider.generate(prompt))
+            except (RuntimeError, ValueError) as exc:
+                state.feedback.append(f"Red Team provider could not generate a PoC: {exc}")
+                state.final_verification_state = "human_review_required"
+                return state
         if test_source is None:
             state.feedback.append("No safe deterministic PoC template is available for this candidate.")
+            state.final_verification_state = "human_review_required"
             return state
         test_name = f"Exploit_{finding.id}.t.sol"
         test_path = Path(state.workspace_path or state.project_path) / "test" / test_name
+        test_path.parent.mkdir(parents=True, exist_ok=True)
         test_path.write_text(test_source, encoding="utf-8")
         state.exploit_source = test_source
         state.exploit_artifact = ExploitArtifact(
@@ -39,6 +59,16 @@ class RedTeam:
         finding.status = FindingStatus.CONFIRMED if state.exploit_confirmed else FindingStatus.DISCARDED
         state.exploit_artifact.confirmed = state.exploit_confirmed
         return state
+
+    @staticmethod
+    def _extract_solidity(response: str) -> str:
+        blocks = re.findall(r"```(?:solidity)?\s*(.*?)```", response, flags=re.DOTALL | re.IGNORECASE)
+        source = blocks[0].strip() if blocks else response.strip()
+        if "pragma solidity" not in source or not re.search(r"function\s+testExploit\s*\(", source):
+            raise ValueError("response must contain Solidity and a testExploit function")
+        if "../" not in source:
+            raise ValueError("response must import the target project with a relative path")
+        return source + "\n"
 
     @staticmethod
     def _fixture_test(finding_id: str, source_file: str) -> str | None:
@@ -83,7 +113,7 @@ contract ExploitTest {{
 
 import "../{source_file}";
 
-interface Vm {{ function deal(address account, uint256 newBalance) external; function startPrank(address sender, address origin) external; function stopPrank() external; }}
+interface Vm {{ function deal(address account, uint256 newBalance) external; function prank(address sender) external; }}
 
 contract ExploitTest {{
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));

@@ -46,7 +46,7 @@ Python 3.11+ is required. For a real run, install Foundry, Slither, Mythril, and
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install '.[dev]'
+pip install '.[dev,llm]'
 sentinel scan ./examples/vulnerable_reentrancy --mock
 sentinel scan ./examples/vulnerable_access_control --mock
 sentinel scan ./examples/vulnerable_tx_origin --mock
@@ -58,6 +58,19 @@ The command writes Markdown and JSON reports under `reports/`. `--mock` selects 
 Read the report's **Pipeline Timeline** first. A candidate is only an initial signal; it becomes confirmed when the Red Team's Forge test proves the impact. A final `verified` result means the Judge built the patched copy, saw the exploit test fail, and saw all other tests pass. If the state is `execution_unavailable`, install Foundry and make `forge` available on your `PATH`; scanner errors likewise mean coverage is incomplete, not that the code is safe.
 
 Use `--scout-only` for evidence collection without PoC or repair. Start the local dashboard and API with `make serve`, then open `http://127.0.0.1:8000`.
+
+## SmartBugs Curated evaluation dataset
+
+Download the annotated SmartBugs Curated Solidity dataset and build Sentinel's readable benchmark manifest with:
+
+```bash
+make download-smartbugs
+make prepare-smartbugs
+```
+
+The dataset is stored in `datasets/smartbugs-curated` and intentionally excluded from Git. The generated `datasets/manifests/smartbugs-curated.json` records each source file, its expected vulnerability category, and the dataset's annotated vulnerable lines. SmartBugs files are benchmark cases for Scout detection; they are not assumed to have a safe generic exploit or patch. Use the four `examples/` projects for the complete PoC → patch → Judge demonstration.
+
+Run five dataset cases first with `make scan-smartbugs`. It creates one report folder per contract under `reports/smartbugs/` and an overall `smartbugs-scan-summary.json`. To test one class, for example reentrancy, use `.venv/bin/python scripts/scan_smartbugs.py --category REENTRANCY --limit 5`. `make scan-smartbugs-all` processes all 143 cases and can take a long time, especially when Mythril is enabled.
 
 ## State ledger and safety
 

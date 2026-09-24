@@ -25,6 +25,16 @@ class FakeFoundry:
         return self.regression_result
 
 
+class FakeProvider:
+    def __init__(self, response: str) -> None:
+        self.response = response
+        self.prompts: list[str] = []
+
+    def generate(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        return self.response
+
+
 def execution(code: int, *, timed_out: bool = False) -> ExecutionResult:
     return ExecutionResult(command=["forge"], cwd="/tmp", exit_code=code, success=code == 0, timed_out=timed_out)
 
@@ -57,6 +67,49 @@ def test_new_fixture_templates_cover_tx_origin_and_unchecked_call() -> None:
     red_team = RedTeam(FoundryRunner(None))
     assert "tx.origin phishing was blocked" in red_team._fixture_test("heuristic-tx-origin", "src/TxOriginWallet.sol")
     assert "unchecked call did not lose accounting credit" in red_team._fixture_test("heuristic-unchecked-call", "src/UncheckedCallWallet.sol")
+
+
+def test_red_team_uses_provider_for_unknown_candidates(tmp_path: Path) -> None:
+    source_file = "src/Unknown.sol"
+    (tmp_path / source_file).parent.mkdir(parents=True)
+    (tmp_path / source_file).write_text("contract Unknown {}")
+    provider = FakeProvider("""```solidity
+pragma solidity ^0.8.20;
+import \"../src/Unknown.sol\";
+contract ExploitTest { function testExploit() public {} }
+```""")
+    state = RuntimeState(
+        project_path=str(tmp_path), source_files=[source_file],
+        findings=[VulnerabilityFinding(id="unknown", source="slither", detector="custom", description="candidate", file=source_file)],
+        candidate_id="unknown",
+    )
+    red_team = RedTeam(FakeFoundry(execution(0), execution(0), execution(0)), provider)
+    red_team.generate_and_validate(state)
+    assert state.exploit_source.startswith("pragma solidity")
+    assert provider.prompts
+
+
+def test_blue_team_uses_provider_for_unknown_candidates(tmp_path: Path) -> None:
+    source_file = "src/Unknown.sol"
+    original = "contract Unknown { function f() external {} }\n"
+    (tmp_path / source_file).parent.mkdir(parents=True)
+    (tmp_path / source_file).write_text(original)
+    provider = FakeProvider("""```diff
+--- a/src/Unknown.sol
++++ b/src/Unknown.sol
+@@ -1,1 +1,1 @@
+-contract Unknown { function f() external {} }
++contract Unknown { function f() external { require(msg.sender != address(0)); } }
+```""")
+    state = RuntimeState(
+        project_path=str(tmp_path), original_source={source_file: original},
+        findings=[VulnerabilityFinding(id="unknown", source="slither", detector="custom", description="candidate", file=source_file)],
+        candidate_id="unknown", exploit_confirmed=True,
+    )
+    blue_team = BlueTeam(provider)
+    blue_team.generate_and_apply(state)
+    assert "require(msg.sender" in (tmp_path / source_file).read_text()
+    assert provider.prompts
 
 
 def test_blue_team_moves_effect_before_external_interaction(tmp_path: Path) -> None:
