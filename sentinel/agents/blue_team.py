@@ -1,6 +1,7 @@
 import difflib
 from pathlib import Path
 
+from sentinel.patching.applier import apply_replacement
 from sentinel.schemas.artifacts import PatchArtifact
 from sentinel.schemas.state import RuntimeState
 
@@ -13,22 +14,26 @@ class BlueTeam:
         if finding is None or not state.exploit_confirmed:
             return state
         relative = finding.file
-        path = Path(state.project_path) / relative
+        workspace = Path(state.workspace_path or state.project_path)
+        path = workspace / relative
         original = path.read_text(encoding="utf-8")
-        if "reentrancy" in finding.id:
-            old, new = "uint256 amount = balances[msg.sender];", "uint256 amount = balances[msg.sender];\n        balances[msg.sender] = 0;"
-            old_effect = "        balances[msg.sender] = 0;\n"
-            new_effect = ""
+        if finding.id == "heuristic-reentrancy":
+            old = '''        uint256 amount = balances[msg.sender];
+        (bool sent,) = msg.sender.call{value: amount}("");
+        require(sent, "send failed");
+        balances[msg.sender] = 0;'''
+            new = '''        uint256 amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+        (bool sent,) = msg.sender.call{value: amount}("");
+        require(sent, "send failed");'''
         else:
-            old, new = "function sweep(address payable recipient) external {", "function sweep(address payable recipient) external {\n        require(msg.sender == owner, \"not owner\");"
-            old_effect, new_effect = "", ""
+            old = "function sweep(address payable recipient) external {"
+            new = "function sweep(address payable recipient) external {\n        require(msg.sender == owner, \"not owner\");"
         if old not in original:
             state.feedback.append("Blue Team could not locate a minimal patch anchor")
             return state
-        patched = original.replace(old, new, 1)
-        if old_effect:
-            patched = patched.replace(old_effect, new_effect, 1)
-        path.write_text(patched, encoding="utf-8")
+        apply_replacement(workspace, relative, old, new, set(state.original_source))
+        patched = path.read_text(encoding="utf-8")
         state.patched_source[relative] = patched
         state.patch_diff = "".join(difflib.unified_diff(original.splitlines(True), patched.splitlines(True), fromfile=relative, tofile=relative))
         state.patch_artifact = PatchArtifact(

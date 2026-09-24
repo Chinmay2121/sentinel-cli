@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from sentinel.patching.applier import apply_replacement
+from sentinel.patching.applier import apply_replacement, apply_unified_diff
 from sentinel.reporting.markdown import render_report
 from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RuntimeState
@@ -16,6 +16,11 @@ def test_state_ledger_is_json_serializable() -> None:
 def test_runner_rejects_untrusted_commands(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         ControlledRunner().run(["sh", "-c", "echo unsafe"], tmp_path)
+
+
+def test_runner_rejects_noncompiler_environment_override(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="compiler environment"):
+        ControlledRunner().run(["forge", "build"], tmp_path, env={"PATH": "/tmp"})
 
 
 def test_runner_records_missing_allowlisted_tool(tmp_path: Path, monkeypatch) -> None:
@@ -32,6 +37,23 @@ def test_patch_replacement_is_scoped(tmp_path: Path) -> None:
     source.write_text("contract C { uint256 x; }", encoding="utf-8")
     apply_replacement(tmp_path, "Contract.sol", "uint256 x", "uint256 y", {"Contract.sol"})
     assert "uint256 y" in source.read_text(encoding="utf-8")
+
+
+def test_unified_patch_applies_only_matching_existing_file(tmp_path: Path) -> None:
+    source = tmp_path / "Contract.sol"
+    source.write_text("contract C {\n    uint256 x;\n}\n", encoding="utf-8")
+    patch = "--- a/Contract.sol\n+++ b/Contract.sol\n@@ -1,3 +1,3 @@\n contract C {\n-    uint256 x;\n+    uint256 y;\n }\n"
+    assert apply_unified_diff(tmp_path, patch, {"Contract.sol"}) == ["Contract.sol"]
+    assert "uint256 y" in source.read_text(encoding="utf-8")
+
+
+def test_unified_patch_rejects_stale_context_and_new_files(tmp_path: Path) -> None:
+    source = tmp_path / "Contract.sol"
+    source.write_text("contract C {}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="context"):
+        apply_unified_diff(tmp_path, "+++ b/Contract.sol\n@@ -1 +1 @@\n-old\n+new\n", {"Contract.sol"})
+    with pytest.raises(ValueError, match="unauthorized"):
+        apply_unified_diff(tmp_path, "+++ b/New.sol\n@@ -0,0 +1 @@\n+new\n", {"Contract.sol"})
 
 
 def test_report_never_invents_confirmation() -> None:

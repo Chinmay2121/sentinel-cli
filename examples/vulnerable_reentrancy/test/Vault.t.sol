@@ -1,18 +1,25 @@
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
 import "../src/VulnerableVault.sol";
 
-contract VaultTest is Test {
+interface Vm {
+    function deal(address account, uint256 newBalance) external;
+}
+
+contract VaultTest {
+    Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
     VulnerableVault vault;
 
     function setUp() public {
+        vm.deal(address(this), 1 ether);
         vault = new VulnerableVault();
     }
+
+    receive() external payable {}
 
     function testDepositAndWithdraw() public {
         vault.deposit{value: 1 ether}();
         vault.withdraw();
-        assertEq(vault.balances(address(this)), 0);
+        require(vault.balances(address(this)) == 0, "withdraw did not clear balance");
     }
 }

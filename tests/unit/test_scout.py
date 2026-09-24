@@ -53,8 +53,9 @@ class AnalyzerRunner:
         self.commands = []
         self.solc_settings = None
 
-    def run(self, command, cwd):
+    def run(self, command, cwd, env=None):
         self.commands.append(list(command))
+        self.env = env
         if command[0] == "myth":
             self.solc_settings = json.loads(Path(command[command.index("--solc-json") + 1]).read_text())
         payload = self.slither if command[0] == "slither" else self.mythril
@@ -98,6 +99,14 @@ def test_partial_tool_failure_keeps_other_findings(project):
     assert len(bundle.findings) == 1
 
 
+def test_structured_analyzer_failure_is_not_classified_as_invalid_json(project):
+    runner = AnalyzerRunner(mythril={"success": False, "error": "compiler unavailable"})
+    runner.mythril = {"success": False, "error": "compiler unavailable"}
+    bundle = run_scout_tools(project, runner)
+    assert bundle.runs[1].status == "failed"
+    assert bundle.runs[1].diagnostics == ["compiler unavailable"]
+
+
 def test_mythril_commands_are_local_bounded_and_remapped(project):
     runner = AnalyzerRunner()
     run_scout_tools(project, runner, mythril_timeout=17, transaction_count=3)
@@ -109,6 +118,15 @@ def test_mythril_commands_are_local_bounded_and_remapped(project):
     assert command[command.index("--solv") + 1] == "0.8.20"
     assert runner.solc_settings["remappings"] == ["lib/=vendor/"]
     assert not Path(command[command.index("--solc-json") + 1]).exists()
+
+
+def test_explicit_compiler_path_is_passed_only_to_mythril(project, tmp_path):
+    compiler = tmp_path / "solc"
+    compiler.write_text("binary")
+    runner = AnalyzerRunner()
+    run_scout_tools(project, runner, solc_binary=compiler)
+    assert "--solv" not in runner.commands[1]
+    assert runner.env == {"SOLC": str(compiler.resolve())}
 
 
 def test_missing_tools_are_reported_without_normal_mode_heuristics(project):

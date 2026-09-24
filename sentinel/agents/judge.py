@@ -12,7 +12,7 @@ class Judge:
         self.foundry = foundry
 
     def verify(self, state: RuntimeState) -> RuntimeState:
-        project = Path(state.project_path)
+        project = Path(state.workspace_path or state.project_path)
         build = self.foundry.build(project)
         state.compilation_result = build
         if not build.success:
@@ -23,7 +23,9 @@ class Judge:
             return state
         exploit = self.foundry.exploit(project)
         state.exploit_result = exploit
-        neutralized = not exploit.success and bool(exploit.stderr or exploit.stdout)
+        # A normal Forge assertion failure returns 1. Tool failures and timeouts are
+        # inconclusive, never evidence that a patch neutralized an exploit.
+        neutralized = exploit.exit_code == 1 and not exploit.timed_out
         regression = self.foundry.regression(project)
         state.regression_result = regression
         state.judge_result = JudgeResult(

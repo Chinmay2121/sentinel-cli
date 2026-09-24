@@ -1,9 +1,8 @@
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
 import "../src/VulnerableTreasury.sol";
 
-contract TreasuryTest is Test {
+contract TreasuryTest {
     VulnerableTreasury treasury;
 
     function setUp() public {
@@ -11,6 +10,6 @@ contract TreasuryTest is Test {
     }
 
     function testOwnerIsRecorded() public {
-        assertEq(treasury.owner(), address(this));
+        require(treasury.owner() == address(this), "owner was not recorded");
     }
 }

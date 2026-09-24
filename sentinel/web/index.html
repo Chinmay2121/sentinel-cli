@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentinel Local Review</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #10141c; color: #e8edf5; }
+    body { max-width: 960px; margin: 3rem auto; padding: 0 1.2rem; }
+    form, article { background: #19212e; border-radius: 12px; padding: 1.25rem; margin: 1rem 0; }
+    input, button { font: inherit; padding: .65rem; border-radius: 7px; border: 1px solid #4e627d; }
+    input { width: min(620px, 100%); background: #10141c; color: inherit; }
+    button { background: #58a6ff; color: #061525; font-weight: 700; cursor: pointer; }
+    code, pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .state { color: #90d7ff; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Sentinel local review</h1>
+  <p>Run a local Foundry scan and inspect persisted evidence. A completed scan is not a security guarantee.</p>
+  <form id="scan-form">
+    <label for="path">Foundry project path</label><br>
+    <input id="path" required placeholder="/absolute/path/to/foundry-project"><br><br>
+    <label><input id="mock" type="checkbox"> Development mock mode</label>
+    <label><input id="scout" type="checkbox"> Scout only</label>
+    <button type="submit">Run scan</button>
+  </form>
+  <p id="message" role="status"></p>
+  <section id="results"></section>
+  <script>
+    const results = document.querySelector('#results');
+    const message = document.querySelector('#message');
+    const escape = value => String(value || '').replace(/[&<>]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[character]));
+    const summary = scan => `<article><div class="state">${escape(scan.final_state)}</div><p>Findings: ${scan.findings}; confirmed: ${scan.confirmed}</p><pre>${escape((scan.feedback || []).join('\n'))}</pre>${scan.ledger_name ? `<button data-ledger="${escape(scan.ledger_name)}">Inspect evidence</button>` : ''}</article>`;
+    async function refresh() {
+      const response = await fetch('/scans');
+      if (response.ok) results.innerHTML = (await response.json()).map(summary).join('') || '<p>No saved scans yet.</p>';
+    }
+    document.querySelector('#scan-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      message.textContent = 'Scanning. This can take several minutes.';
+      const response = await fetch('/scans', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({project_path: document.querySelector('#path').value, mock: document.querySelector('#mock').checked, scout_only: document.querySelector('#scout').checked})});
+      const body = await response.json();
+      message.textContent = response.ok ? `Finished: ${body.final_state}` : body.detail;
+      await refresh();
+    });
+    results.addEventListener('click', async event => {
+      const ledger = event.target.dataset.ledger;
+      if (!ledger) return;
+      const response = await fetch(`/scans/${encodeURIComponent(ledger)}`);
+      if (!response.ok) return;
+      const scan = await response.json();
+      const findings = scan.findings.map(finding => `${finding.severity} ${finding.detector} ${finding.file || 'unknown'}:${finding.line || '?'}`).join('\n');
+      message.innerHTML = `<article><h2>Evidence</h2><pre>${escape(findings)}</pre><h2>Patch diff</h2><pre>${escape(scan.patch_diff || 'No patch was generated.')}</pre></article>`;
+    });
+    refresh();
+  </script>
+</body>
+</html>

@@ -36,8 +36,8 @@ def project_sources(project: Path) -> tuple[list[Path], dict]:
 
 
 def _analyze(tool: str, target: str, command: list[str], project: Path,
-             runner: ControlledRunner, parser) -> tuple[AnalyzerRun, list[VulnerabilityFinding]]:
-    execution = runner.run(command, project)
+             runner: ControlledRunner, parser, env: dict[str, str] | None = None) -> tuple[AnalyzerRun, list[VulnerabilityFinding]]:
+    execution = runner.run(command, project, env=env)
     if execution.timed_out:
         return AnalyzerRun(tool=tool, target=target, status="timed_out", execution=execution,
                            diagnostics=["Analysis exceeded its process time limit; coverage is incomplete"]), []
@@ -45,6 +45,13 @@ def _analyze(tool: str, target: str, command: list[str], project: Path,
         return AnalyzerRun(tool=tool, target=target, status="unavailable", execution=execution,
                            diagnostics=[execution.stderr]), []
     try:
+        document = json.loads(execution.stdout)
+        if isinstance(document, dict) and document.get("success") is False:
+            detail = document.get("error")
+            return AnalyzerRun(
+                tool=tool, target=target, status="failed", execution=execution,
+                diagnostics=[detail if isinstance(detail, str) else "Analyzer reported failure"],
+            ), []
         findings = parser(execution.stdout, project)
     except (ValueError, TypeError) as exc:
         status = "invalid_output" if execution.success else "failed"
@@ -59,7 +66,8 @@ def _analyze(tool: str, target: str, command: list[str], project: Path,
 
 
 def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout: int = 60,
-                    transaction_count: int = 2, demo_fallback: bool = False) -> AnalysisBundle:
+                    transaction_count: int = 2, solc_binary: Path | None = None,
+                    demo_fallback: bool = False) -> AnalysisBundle:
     """Run Slither for the project and bounded Mythril analysis for every source file."""
     project = project.resolve()
     paths, profile = project_sources(project)
@@ -88,10 +96,11 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
                        "--execution-timeout", str(mythril_timeout),
                        "--transaction-count", str(transaction_count), "--solc-json", str(settings_file)]
             version = profile.get("solc_version", profile.get("solc"))
-            if isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version):
+            myth_env = {"SOLC": str(solc_binary.resolve())} if solc_binary and solc_binary.is_file() else None
+            if myth_env is None and isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version):
                 command.extend(["--solv", version])
             run, findings = _analyze("mythril", path.relative_to(project).as_posix(), command,
-                                     project, runner, parse_mythril)
+                                     project, runner, parse_mythril, myth_env)
             bundle.runs.append(run)
             bundle.findings.extend(findings)
             if run.status == "unavailable":

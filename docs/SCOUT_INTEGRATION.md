@@ -19,7 +19,7 @@ slither --version
 myth version
 ```
 
-A compatible Python interpreter and native build dependencies may be required by Mythril. Follow its upstream installation instructions if the local interpreter is unsupported; `pipx install --python /path/to/compatible/python mythril` selects a separate interpreter. Install Foundry and the target Solidity compiler as required by your project. Ensure `slither`, `myth`, `forge` and `solc` are visible on the PATH inherited by Sentinel.
+A compatible Python interpreter and native build dependencies may be required by Mythril. Follow its upstream installation instructions if the local interpreter is unsupported; `pipx install --python /path/to/compatible/python mythril` selects a separate interpreter. Install Foundry and the target Solidity compiler as required by your project. Ensure `slither`, `myth`, `forge` and `solc` are visible on the PATH inherited by Sentinel. If Mythril cannot resolve the correct platform compiler, set `SOLC_BINARY` to an executable matching the project profile. Sentinel passes that path only as Mythril's `SOLC` compiler override.
 
 ```bash
 source .venv/bin/activate
@@ -48,7 +48,7 @@ Successful JSON can contain findings even with a nonzero tool exit code. Raw exe
 - Foundry profile inheritance, environment overrides, automatic library remapping discovery, multi-version projects, and all compiler settings are not reconstructed. Provide explicit default-profile settings/remappings; inspect recorded compilation failures.
 - The runner invokes local installed tools. `--no-docker` is still a legacy no-op; container orchestration remains a separate plan task. `--no-onchain-data` disables Mythril chain-state lookup, but compiler downloads may still need network access.
 - The existing Red Team is fixture-specific. Real analyzer findings stop at `human_review_required` rather than being processed by an unrelated fixture PoC.
-- Live detector execution was not verified in this environment: `slither`, `myth`, `forge` and `solc` were absent from PATH, and Docker was not running. Parser/command/workflow tests use controlled test doubles, not benchmark results.
+- Live Slither execution was verified on the local reentrancy fixture on 2026-09-24. It produced `reentrancy-eth`, `solc-version`, and `low-level-calls` results. Mythril's 0.24.8 release was installed and starts. It needs `SOLC_BINARY` on this ARM64 host because its own resolver requests an unavailable macOS x86_64 artifact from `solc-bin.ethereum.org`. Parser/command/workflow tests use controlled test doubles, not benchmark results.
 
 ## References
 

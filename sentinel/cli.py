@@ -3,9 +3,7 @@ from pathlib import Path
 import typer
 
 from sentinel.config import settings
-from sentinel.graph.workflow import build_workflow
-from sentinel.reporting.markdown import write_report
-from sentinel.schemas.state import RuntimeState
+from sentinel.service import run_scan
 
 app = typer.Typer(help="Sentinel: closed-loop smart-contract security research CLI.")
 
@@ -26,16 +24,12 @@ def scan(
     no_docker: bool = typer.Option(False, "--no-docker"),
 ) -> None:
     del verbose, no_docker
-    if not (project / "foundry.toml").is_file():
-        raise typer.BadParameter("Project must contain foundry.toml")
-    state = RuntimeState(project_path=str(project.resolve()), mock_mode=mock, max_retries=max_retries, scout_only=scout_only)
-    state.retry_count = 0
-    state.feedback.append(f"Maximum patch retries configured: {max_retries}")
-    result = build_workflow().invoke(state)
-    final_state = RuntimeState.model_validate(result)
-    report_path = write_report(final_state, output)
+    try:
+        final_state = run_scan(project, output=output, max_retries=max_retries, mock=mock, scout_only=scout_only)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Sentinel completed: {final_state.final_verification_state}")
-    typer.echo(f"Audit report: {report_path}")
+    typer.echo(f"Audit report: {final_state.final_report_path}")
     if scout_only and final_state.final_verification_state != "scout_complete":
         raise typer.Exit(code=2)
 

@@ -1,3 +1,5 @@
+import shutil
+import tempfile
 from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
@@ -28,17 +30,20 @@ def build_workflow(runner: ControlledRunner | None = None):
             state.feedback.append("Target is not a Foundry project: foundry.toml is missing")
             state.final_verification_state = "invalid_project"
             return state
+        workspace = Path(tempfile.mkdtemp(prefix="sentinel-workspace-")) / "project"
         try:
-            files, original, context = extract_solidity_context(project)
+            shutil.copytree(project, workspace, ignore=shutil.ignore_patterns("out", "cache", ".git", "__pycache__"))
+            files, original, context = extract_solidity_context(workspace)
         except (OSError, ValueError, TypeError) as exc:
             state.feedback.append(f"Invalid project source configuration: {exc}")
             state.final_verification_state = "invalid_project"
             return state
+        state.workspace_path = str(workspace)
         state.source_files, state.original_source, state.ast_context = files, original, context
         return state
 
     def static_analysis(state: RuntimeState) -> RuntimeState:
-        project = Path(state.project_path)
+        project = Path(state.workspace_path or state.project_path)
         compiler = controlled.run(["solc", "--version"], project)
         state.compiler_info = {"command": "solc --version", "output": compiler.stdout or compiler.stderr}
         return state
@@ -71,7 +76,7 @@ def build_workflow(runner: ControlledRunner | None = None):
         if state.retry_count and state.candidate_id:
             finding = next((item for item in state.findings if item.id == state.candidate_id), None)
             if finding and finding.file in state.original_source:
-                (Path(state.project_path) / finding.file).write_text(state.original_source[finding.file], encoding="utf-8")
+                (Path(state.workspace_path or state.project_path) / finding.file).write_text(state.original_source[finding.file], encoding="utf-8")
         return blue_team.generate_and_apply(state)
 
     def judge_node(state: RuntimeState) -> RuntimeState:

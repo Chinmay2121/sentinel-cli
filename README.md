@@ -1,12 +1,12 @@
 # Sentinel CLI
 
-Sentinel is an academic research prototype for an **Autonomous Cyber-Physical Feedback Loop** that combines probabilistic multi-agent reasoning with deterministic EVM execution. It is intentionally a local, defensive tool for Solidity/Foundry projects.
+Sentinel is a local, defensive research prototype for Foundry projects. It combines static and symbolic candidates with an isolated exploit, repair, and verification loop. It never deploys contracts, uses wallets, or sends transactions to a public network.
 
 ## Current implementation status
 
-Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. Use `sentinel scan <foundry-project> --scout-only` for this implemented slice. Add `--mock` for the deterministic semantic provider; analyzers still run and any fallback heuristic is labeled. Incomplete analyzer coverage returns exit code 2 in Scout-only mode.
+Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. The two supplied fixtures have executable proof-of-concepts, repairs, and Forge regression gates. Every scan copies the project to an isolated temporary workspace, so Sentinel writes a patch diff without changing the source project.
 
-General PoC generation, trustworthy remediation validation, production model transports and the broader PPT architecture remain unfinished. Real analyzer candidates stop for human review rather than entering the old fixture-specific PoC path. The architecture below is the intended flow, not a claim that all stages are complete.
+General PoC generation, retrieval-backed repair, benchmark-scale evaluation, and the distributed storage design from the PPT remain future work. Real analyzer candidates that do not match the two reviewed fixture templates stop for human review rather than receiving an unrelated patch.
 
 See [Scout setup and limitations](docs/SCOUT_INTEGRATION.md), [implementation plan](docs/IMPLEMENTATION_PLAN.md), and [requirement matrix](docs/REQUIREMENT_TRACEABILITY.md).
 
@@ -35,9 +35,9 @@ The cognitive flow is **Perceive -> Reason -> Act -> Observe**:
 - **Blue Team** proposes a targeted patch under the Minimal Invasive Change constraint.
 - **Judge** is deterministic and is never an LLM. It requires build success, exploit neutralization, and regression success.
 
-## Model assignments
+## Model integrations
 
-The default architecture preserves the MPP1 report assignments: Google Gemini 1.5 Flash for Scout, OpenAI GPT-4o for Red Team, and DeepSeek-Coder-7B hosted through Ollama for Blue Team. Providers are isolated behind `LLMProvider`; missing credentials fail as recorded workflow evidence rather than silently changing roles.
+The project retains the MPP1 model assignments: Gemini for Scout, GPT-4o for future general PoC synthesis, and DeepSeek-Coder through Ollama for future repair synthesis. All three provider transports are implemented behind `LLMProvider`; missing credentials or unavailable local Ollama instances fail as recorded workflow evidence. The current validated repair path intentionally uses reviewed deterministic templates for the two supplied fixtures rather than an unbounded model-generated patch.
 
 ## Quick start
 
@@ -46,19 +46,20 @@ Python 3.11+ is required. For a real run, install Foundry, Slither, Mythril, and
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev]'
+pip install '.[dev]'
 sentinel scan ./examples/vulnerable_reentrancy --mock
+sentinel scan ./examples/vulnerable_access_control --mock
 ```
 
-The command writes `reports/sentinel-report-<timestamp>.md`. `--mock` selects deterministic provider responses for development; it does not fabricate Forge results. Without Forge, a candidate is discarded or the workflow records unavailable execution rather than calling it confirmed.
+The command writes Markdown and JSON reports under `reports/`. `--mock` selects the deterministic Scout provider and enables clearly labeled fixture heuristics when external analyzers are unavailable; it does not fabricate Forge results. The original target source remains unchanged.
 
-Useful options are `--output`, `--max-retries 5`, `--verbose`, and `--no-docker`.
+Use `--scout-only` for evidence collection without PoC or repair. Start the local dashboard and API with `make serve`, then open `http://127.0.0.1:8000`.
 
 ## State ledger and safety
 
 `RuntimeState` is a Pydantic, JSON-serializable state ledger. It records source files, AST/context placeholders, analyzer execution evidence, exploit/compiler/regression traces, patch attempts, feedback, retry history, verification, and report path.
 
-The controlled runner accepts only `solc`, `slither`, `myth`, `aderyn`, `forge`, `cast`, and explicitly managed Docker invocations. It uses argument arrays, timeouts, validated working directories, and no `shell=True`. Generated tests are written only under the target Foundry project. No mainnet deployment, private-key loading, arbitrary RPC target, real wallet, or LLM-generated shell command is supported.
+The controlled runner accepts only `solc`, `slither`, `myth`, `aderyn`, `forge`, `cast`, and explicitly managed Docker invocations. It uses argument arrays, timeouts, validated working directories, and no `shell=True`. Generated tests and repairs are written only inside an ephemeral workspace copy. No mainnet deployment, private-key loading, arbitrary RPC target, real wallet, or LLM-generated shell command is supported.
 
 ## Five operational phases
 
@@ -82,4 +83,4 @@ The GitHub Actions workflow installs Foundry and invokes Sentinel against the re
 
 ## Evaluation and limitations
 
-Latency, false-positive reduction, gas comparison, and the MPP1 five-minute/30-50% targets are measurements to collect, not claims made by this repository. Gas metrics are reported unavailable when Foundry does not provide a reliable comparison. The MVP currently demonstrates single-project local workflows; cross-contract reasoning, complete production model transports, and broad vulnerability coverage remain research extensions.
+Latency, false-positive reduction, gas comparison, and the MPP1 five-minute/30-50% targets are measurements to collect, not claims made by this repository. Gas metrics are reported unavailable when Foundry does not provide a reliable comparison. The current implementation demonstrates isolated single-project workflows and two reviewed vulnerability classes. Cross-contract reasoning, generalized PoC generation, retrieval-backed repair, and broad benchmark coverage remain research extensions.

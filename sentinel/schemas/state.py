@@ -18,6 +18,7 @@ class RuntimeState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=False)
 
     project_path: str
+    workspace_path: str | None = None
     mock_mode: bool = False
     max_retries: int = 5
     source_files: list[str] = Field(default_factory=list)

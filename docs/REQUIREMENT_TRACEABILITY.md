@@ -9,13 +9,13 @@ Status after the Slither/Mythril Scout milestone. COMPLETE means implemented wit
 | Medusa and broader detection substrate | PPT 28–29 | No adapters | MISSING | analyzers | Medusa, Solhint, eThor/Echidna as appropriate |
 | Semantic Scout | PPT 28 | Evidence-bearing prompt; Gemini transport unfinished | PARTIAL | agents/scout, llm/gemini | Real provider transport and validation |
 | Source/ABI/bytecode context | PPT 29 | Recursive default source profile, lexical context | PARTIAL | analyzers/tools | AST/ABI/bytecode and full Foundry profile resolution |
-| Local PoC generation and feedback loop | PPT 6, 29; PoCo §§3–4 | Fixture deployment assertion only | BROKEN | agents/red_team | Actual exploit assertions, general synthesis, retries |
+| Local PoC generation and feedback loop | PPT 6, 29; PoCo §§3–4 | Reviewed executable reentrancy and access-control fixture PoCs | PARTIAL | agents/red_team, foundry | General synthesis and multi-candidate retries |
 | Triggerability/profitability | PPT 6, 26 | Not measured | MISSING | agents/red_team | Impact assertions and value evidence |
-| RAG/KG repair, ABI preservation | PPT 6, 28–29 | Fixture string replacements; ineffective reentrancy fix | BROKEN | agents/blue_team | Correct repairs, retrieval, ABI validation |
-| Deterministic exploit/regression gate | PPT 6, 29; PoCo §4.6 | Forge wrappers; failure misclassification | BROKEN | agents/judge, foundry | Structured test outcomes, real baseline and patch tests |
+| RAG/KG repair, ABI preservation | PPT 6, 28–29 | Reviewed minimal fixture patches; repair stays in a temporary workspace | PARTIAL | agents/blue_team, patching | Retrieval, knowledge graph and ABI validation |
+| Deterministic exploit/regression gate | PPT 6, 29; PoCo §4.6 | Build, expected assertion failure, and non-exploit regression gate | COMPLETE for fixtures | agents/judge, foundry | General PoC and patch cases |
 | CLI JSON/human reports | PPT 28–30 | Scout mode, Markdown + JSON ledger | PARTIAL | cli, reporting | SARIF, budgets, models, progress, severity gating |
 | CI hook and PR annotations | PPT 28–30 | Basic action with loose result check | PARTIAL | .github/workflows | Correct gate, SARIF/review comments |
-| Dashboard + REST + trace stream | PPT 28–30 | None | MISSING | proposed api/web | Connected review UI, API, patch acceptance |
+| Dashboard + REST + trace stream | PPT 28–30 | Loopback REST scan/history endpoints and evidence/patch review page | PARTIAL | api, service, web | Authentication, streaming trace and patch acceptance |
 | PostgreSQL/S3 artifacts | PPT 28 | Local report files only | PARTIAL | reporting, schemas | Database and object-store integration |
 | Neo4j/CodeBERT knowledge graph | PPT 28–29 | None | MISSING | proposed retrieval | Knowledge corpus, retrieval, graph ingestion |
 | Telemetry, gas, invariant checks | PPT 28–29 | Execution durations recorded | PARTIAL | runner, schemas | Agent/token metrics, gas deltas, invariants |

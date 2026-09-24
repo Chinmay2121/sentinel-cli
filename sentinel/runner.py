@@ -1,6 +1,7 @@
+import os
 import subprocess
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from sentinel.schemas.execution import ExecutionResult
@@ -14,16 +15,19 @@ class ControlledRunner:
     def __init__(self, timeout_seconds: int = 120) -> None:
         self.timeout_seconds = timeout_seconds
 
-    def run(self, command: Sequence[str], cwd: Path) -> ExecutionResult:
+    def run(self, command: Sequence[str], cwd: Path, env: Mapping[str, str] | None = None) -> ExecutionResult:
         if not command or Path(command[0]).name not in ALLOWED_COMMANDS:
             raise ValueError(f"Command is not allowlisted: {command!r}")
         cwd = cwd.resolve()
         if not cwd.is_dir():
             raise ValueError(f"Working directory does not exist: {cwd}")
+        if env is not None and set(env) - {"SOLC", "SOLC_VERSION"}:
+            raise ValueError("Only compiler environment overrides are allowed")
         started = time.monotonic()
         try:
             completed = subprocess.run(
                 list(command), cwd=cwd, capture_output=True, text=True,
+                env={**os.environ, **(dict(env) if env else {})},
                 timeout=self.timeout_seconds, check=False,
             )
             return ExecutionResult(

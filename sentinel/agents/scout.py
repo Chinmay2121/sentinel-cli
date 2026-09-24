@@ -19,9 +19,10 @@ class Scout:
     def analyze(self, state: RuntimeState) -> RuntimeState:
         if self.runner is not None:
             bundle = run_scout_tools(
-                Path(state.project_path), self.runner,
+                Path(state.workspace_path or state.project_path), self.runner,
                 mythril_timeout=settings.mythril_execution_timeout_seconds,
-                transaction_count=settings.mythril_transaction_count, demo_fallback=state.mock_mode,
+                transaction_count=settings.mythril_transaction_count, solc_binary=settings.solc_binary,
+                demo_fallback=state.mock_mode,
             )
             state.analyzer_runs = bundle.runs
             state.slither_result = next((r.execution for r in bundle.runs if r.tool == "slither"), None)

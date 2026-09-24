@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ollama_host: str = "http://127.0.0.1:11434"
     max_retries: int = 5
     command_timeout_seconds: int = 120
+    solc_binary: Path | None = None
     mythril_execution_timeout_seconds: int = Field(default=60, ge=1, le=3600)
     mythril_transaction_count: int = Field(default=2, ge=1, le=10)
     use_docker: bool = True
