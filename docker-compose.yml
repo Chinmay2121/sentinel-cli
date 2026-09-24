@@ -1,0 +1,8 @@
+services:
+  analyzers:
+    build: ./docker
+    network_mode: none
+    read_only: true
+    volumes:
+      - ./examples:/workspace/examples:ro
+    working_dir: /workspace

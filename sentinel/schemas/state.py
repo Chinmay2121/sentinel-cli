@@ -1,0 +1,50 @@
+from pydantic import BaseModel, ConfigDict, Field
+
+from sentinel.schemas.artifacts import ExploitArtifact, PatchArtifact
+from sentinel.schemas.execution import ExecutionResult, JudgeResult
+from sentinel.schemas.vulnerability import VulnerabilityFinding
+
+
+class RetryRecord(BaseModel):
+    attempt: int
+    failure_type: str
+    feedback: str
+    patch: str = ""
+    execution: ExecutionResult | None = None
+
+
+class RuntimeState(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=False)
+
+    project_path: str
+    mock_mode: bool = False
+    max_retries: int = 5
+    source_files: list[str] = Field(default_factory=list)
+    compiler_info: dict[str, str] = Field(default_factory=dict)
+    ast_context: dict[str, object] = Field(default_factory=dict)
+    natspec_context: dict[str, str] = Field(default_factory=dict)
+    slither_result: ExecutionResult | None = None
+    aderyn_result: ExecutionResult | None = None
+    findings: list[VulnerabilityFinding] = Field(default_factory=list)
+    scout_results: list[str] = Field(default_factory=list)
+    candidate_id: str | None = None
+    exploit_source: str = ""
+    exploit_artifact: ExploitArtifact | None = None
+    exploit_result: ExecutionResult | None = None
+    exploit_confirmed: bool = False
+    original_source: dict[str, str] = Field(default_factory=dict)
+    patched_source: dict[str, str] = Field(default_factory=dict)
+    patch_diff: str = ""
+    patch_artifact: PatchArtifact | None = None
+    compilation_result: ExecutionResult | None = None
+    regression_result: ExecutionResult | None = None
+    judge_result: JudgeResult | None = None
+    gas_metrics: dict[str, object] = Field(default_factory=dict)
+    retry_count: int = 0
+    retry_history: list[RetryRecord] = Field(default_factory=list)
+    feedback: list[str] = Field(default_factory=list)
+    final_verification_state: str = "not_started"
+    final_report_path: str | None = None
+
+    def json_ledger(self) -> str:
+        return self.model_dump_json(indent=2)

@@ -1,0 +1,20 @@
+name: Sentinel security audit
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: python -m pip install .
+      - run: sentinel scan ./examples/vulnerable_reentrancy --no-docker --output ./reports
+      - name: Fail if Sentinel cannot verify remediation
+        run: |
+          grep -R "Final Outcome" -A2 reports | grep -E "verified|human_review_required"
