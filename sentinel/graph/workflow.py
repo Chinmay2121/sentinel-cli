@@ -17,6 +17,7 @@ from sentinel.llm.gemini import GeminiProvider, GeminiScout
 from sentinel.llm.mock import MockProvider
 from sentinel.llm.ollama import OllamaBlueTeam
 from sentinel.llm.openai import OpenAIRedTeam
+from sentinel.novelty import detect_novelty_signals
 from sentinel.protocol import build_protocol_map
 from sentinel.risk import assess_protocol_risk
 from sentinel.runner import ControlledRunner
@@ -81,6 +82,10 @@ def build_workflow(runner: ControlledRunner | None = None, observer: WorkflowObs
     def scout_node(state: RuntimeState) -> RuntimeState:
         scout = Scout(MockProvider() if state.mock_mode else GeminiScout(settings.scout_model), controlled)
         state = scout.analyze(state)
+        state.novelty_assessment, novelty_findings = detect_novelty_signals(state.original_source)
+        state.findings.extend(novelty_findings)
+        # Novelty signals are intentionally not candidate_id values: only scanner
+        # evidence may enter the automated exploit/patch loop.
         state.risk_assessment = assess_protocol_risk(state.protocol_map, state.findings)
         # A bounded Mythril sample is intentional: it prevents a large multi-contract
         # corpus from turning a normal scan into an unbounded symbolic-execution job.
@@ -92,6 +97,11 @@ def build_workflow(runner: ControlledRunner | None = None, observer: WorkflowObs
             state.final_verification_state = "scout_complete" if complete else "scout_incomplete"
         elif not state.findings:
             state.final_verification_state = "no_candidates" if complete else "analysis_incomplete"
+        if novelty_findings and state.final_verification_state in {
+            "no_candidates", "scout_complete", "scout_incomplete", "analysis_incomplete",
+        }:
+            state.final_verification_state = "novelty_review_required"
+            state.feedback.append("Unknown-risk signals were recorded for human review; no exploit or patch was generated from source heuristics alone.")
         return state
 
     def route_after_scout(state: RuntimeState) -> str:

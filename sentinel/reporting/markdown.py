@@ -49,6 +49,15 @@ def render_report(state: RuntimeState) -> str:
         "",
         "## Findings",
     ]
+    novelty = state.novelty_assessment
+    if novelty:
+        lines.extend([
+            "",
+            "## Unknown-Risk Triage",
+            f"- Method: `{novelty.get('method', 'not recorded')}`",
+            f"- Signals requiring review: {novelty.get('candidate_count', 0)}",
+            f"- Scope: {novelty.get('scope', 'not recorded')}",
+        ])
     if not state.findings:
         lines.append("No vulnerability candidates were recorded.")
     for index, finding in enumerate(state.findings, start=1):
@@ -147,6 +156,7 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
             "what_was_observed": finding.description,
             "evidence": finding.evidence,
         } for finding in state.findings],
+        "unknown_risk_triage": state.novelty_assessment,
         "patch": {
             "purpose": state.patch_artifact.rationale if state.patch_artifact else None,
             "changed_file": state.patch_artifact.original_file if state.patch_artifact else None,

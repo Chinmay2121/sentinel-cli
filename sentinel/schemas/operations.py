@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class MonitorRule(BaseModel):
     id: str
-    kind: Literal["coverage", "confirmed_finding", "verification"]
+    kind: Literal["coverage", "confirmed_finding", "verification", "novelty_review"]
     severity: Literal["low", "medium", "high", "critical"] = "medium"
     enabled: bool = True
 

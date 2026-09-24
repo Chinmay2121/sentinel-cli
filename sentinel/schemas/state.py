@@ -27,6 +27,7 @@ class RuntimeState(BaseModel):
     ast_context: dict[str, object] = Field(default_factory=dict)
     protocol_map: dict[str, object] = Field(default_factory=dict)
     risk_assessment: dict[str, object] = Field(default_factory=dict)
+    novelty_assessment: dict[str, object] = Field(default_factory=dict)
     alerts: list[AlertRecord] = Field(default_factory=list)
     natspec_context: dict[str, str] = Field(default_factory=dict)
     slither_result: ExecutionResult | None = None
