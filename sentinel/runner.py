@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sentinel.schemas.execution import ExecutionResult
 
-ALLOWED_COMMANDS = frozenset({"solc", "slither", "aderyn", "forge", "cast", "docker"})
+ALLOWED_COMMANDS = frozenset({"solc", "slither", "myth", "aderyn", "forge", "cast", "docker"})
 
 
 class ControlledRunner:
@@ -35,8 +35,12 @@ class ControlledRunner:
         except subprocess.TimeoutExpired as exc:
             return ExecutionResult(
                 command=list(command), cwd=str(cwd), exit_code=None,
-                stdout=exc.stdout or "", stderr=exc.stderr or "",
+                stdout=_decode(exc.stdout), stderr=_decode(exc.stderr),
                 duration_seconds=time.monotonic() - started, timed_out=True,
             )
         except OSError as exc:
             return ExecutionResult.failed(list(command), str(cwd), str(exc))
+
+
+def _decode(value: str | bytes | None) -> str:
+    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""

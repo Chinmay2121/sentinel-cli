@@ -21,13 +21,14 @@ def scan(
     output: Path = typer.Option(settings.output_dir, "--output"),  # noqa: B008
     max_retries: int = typer.Option(settings.max_retries, "--max-retries", min=0, max=5),
     mock: bool = typer.Option(False, "--mock"),
+    scout_only: bool = typer.Option(False, "--scout-only", help="Run Slither/Mythril triage without generating tests or patches."),
     verbose: bool = typer.Option(False, "--verbose"),
     no_docker: bool = typer.Option(False, "--no-docker"),
 ) -> None:
     del verbose, no_docker
     if not (project / "foundry.toml").is_file():
         raise typer.BadParameter("Project must contain foundry.toml")
-    state = RuntimeState(project_path=str(project.resolve()), mock_mode=mock, max_retries=max_retries)
+    state = RuntimeState(project_path=str(project.resolve()), mock_mode=mock, max_retries=max_retries, scout_only=scout_only)
     state.retry_count = 0
     state.feedback.append(f"Maximum patch retries configured: {max_retries}")
     result = build_workflow().invoke(state)
@@ -35,6 +36,8 @@ def scan(
     report_path = write_report(final_state, output)
     typer.echo(f"Sentinel completed: {final_state.final_verification_state}")
     typer.echo(f"Audit report: {report_path}")
+    if scout_only and final_state.final_verification_state != "scout_complete":
+        raise typer.Exit(code=2)
 
 
 if __name__ == "__main__":

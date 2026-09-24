@@ -25,6 +25,12 @@ def render_report(state: RuntimeState) -> str:
         lines.append(f"| {finding.id} | {finding.source} | {finding.severity} | {location} | {finding.status} |")
     lines.extend([
         "",
+        "## Analyzer Coverage",
+        *[f"- {run.tool} / {run.target}: **{run.status}**, {run.finding_count} findings" for run in state.analyzer_runs],
+        "",
+        "## Diagnostics",
+        *[f"- {message}" for message in state.feedback],
+        "",
         "## Semantic Scout Analysis",
         *[f"- {result}" for result in state.scout_results],
         "",
@@ -49,8 +55,9 @@ def render_report(state: RuntimeState) -> str:
 
 def write_report(state: RuntimeState, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     report_path = output_dir / f"sentinel-report-{stamp}.md"
     report_path.write_text(render_report(state), encoding="utf-8")
     state.final_report_path = str(report_path)
+    report_path.with_suffix(".json").write_text(state.json_ledger(), encoding="utf-8")
     return report_path

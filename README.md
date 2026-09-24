@@ -2,12 +2,20 @@
 
 Sentinel is an academic research prototype for an **Autonomous Cyber-Physical Feedback Loop** that combines probabilistic multi-agent reasoning with deterministic EVM execution. It is intentionally a local, defensive tool for Solidity/Foundry projects.
 
+## Current implementation status
+
+Slither and Mythril are connected to Scout with JSON parsing, candidate ranking, analyzer diagnostics and a persisted JSON ledger. Use `sentinel scan <foundry-project> --scout-only` for this implemented slice. Add `--mock` for the deterministic semantic provider; analyzers still run and any fallback heuristic is labeled. Incomplete analyzer coverage returns exit code 2 in Scout-only mode.
+
+General PoC generation, trustworthy remediation validation, production model transports and the broader PPT architecture remain unfinished. Real analyzer candidates stop for human review rather than entering the old fixture-specific PoC path. The architecture below is the intended flow, not a claim that all stages are complete.
+
+See [Scout setup and limitations](docs/SCOUT_INTEGRATION.md), [implementation plan](docs/IMPLEMENTATION_PLAN.md), and [requirement matrix](docs/REQUIREMENT_TRACEABILITY.md).
+
 ## Architecture
 
 ```mermaid
 flowchart LR
     A[Foundry project] --> B[Scout: Perceive]
-    B --> C[Slither + Aderyn + solc context]
+    B --> C[Slither + Mythril + solc context]
     C --> D[Gemini 1.5 Flash candidate]
     D --> E[Red Team: GPT-4o PoC]
     E --> F[Forge exploit validation]
@@ -33,7 +41,7 @@ The default architecture preserves the MPP1 report assignments: Google Gemini 1.
 
 ## Quick start
 
-Python 3.11+ is required. For a real run, install Foundry, Slither, Aderyn, and the optional model clients. Copy `.env.example` to `.env` and configure credentials only when needed.
+Python 3.11+ is required. For a real run, install Foundry, Slither, Mythril, and the optional model clients. Copy `.env.example` to `.env` and configure credentials only when needed.
 
 ```bash
 python3 -m venv .venv
@@ -50,7 +58,7 @@ Useful options are `--output`, `--max-retries 5`, `--verbose`, and `--no-docker`
 
 `RuntimeState` is a Pydantic, JSON-serializable state ledger. It records source files, AST/context placeholders, analyzer execution evidence, exploit/compiler/regression traces, patch attempts, feedback, retry history, verification, and report path.
 
-The controlled runner accepts only `solc`, `slither`, `aderyn`, `forge`, `cast`, and explicitly managed Docker invocations. It uses argument arrays, timeouts, validated working directories, and no `shell=True`. Generated tests are written only under the target Foundry project. No mainnet deployment, private-key loading, arbitrary RPC target, real wallet, or LLM-generated shell command is supported.
+The controlled runner accepts only `solc`, `slither`, `myth`, `aderyn`, `forge`, `cast`, and explicitly managed Docker invocations. It uses argument arrays, timeouts, validated working directories, and no `shell=True`. Generated tests are written only under the target Foundry project. No mainnet deployment, private-key loading, arbitrary RPC target, real wallet, or LLM-generated shell command is supported.
 
 ## Five operational phases
 

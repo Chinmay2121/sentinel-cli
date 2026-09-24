@@ -6,7 +6,8 @@ from sentinel.agents.blue_team import BlueTeam
 from sentinel.agents.judge import Judge
 from sentinel.agents.red_team import RedTeam
 from sentinel.agents.scout import Scout
-from sentinel.analyzers.tools import extract_solidity_context, run_static_tools
+from sentinel.analyzers.tools import extract_solidity_context
+from sentinel.config import settings
 from sentinel.foundry.runner import FoundryRunner
 from sentinel.llm.gemini import GeminiScout
 from sentinel.llm.mock import MockProvider
@@ -15,8 +16,7 @@ from sentinel.schemas.state import RetryRecord, RuntimeState
 
 
 def build_workflow(runner: ControlledRunner | None = None):
-    controlled = runner or ControlledRunner()
-    foundry = FoundryRunner(controlled)
+    controlled = runner or ControlledRunner(settings.command_timeout_seconds)
     foundry = FoundryRunner(controlled)
     red_team = RedTeam(foundry)
     blue_team = BlueTeam()
@@ -28,20 +28,36 @@ def build_workflow(runner: ControlledRunner | None = None):
             state.feedback.append("Target is not a Foundry project: foundry.toml is missing")
             state.final_verification_state = "invalid_project"
             return state
-        files, original, context = extract_solidity_context(project)
+        try:
+            files, original, context = extract_solidity_context(project)
+        except (OSError, ValueError, TypeError) as exc:
+            state.feedback.append(f"Invalid project source configuration: {exc}")
+            state.final_verification_state = "invalid_project"
+            return state
         state.source_files, state.original_source, state.ast_context = files, original, context
         return state
 
     def static_analysis(state: RuntimeState) -> RuntimeState:
         project = Path(state.project_path)
-        state.slither_result, state.aderyn_result, state.findings = run_static_tools(project, controlled)
         compiler = controlled.run(["solc", "--version"], project)
         state.compiler_info = {"command": "solc --version", "output": compiler.stdout or compiler.stderr}
         return state
 
     def scout_node(state: RuntimeState) -> RuntimeState:
-        scout = Scout(MockProvider() if state.mock_mode else GeminiScout())
-        return scout.analyze(state)
+        scout = Scout(MockProvider() if state.mock_mode else GeminiScout(), controlled)
+        state = scout.analyze(state)
+        complete = bool(state.analyzer_runs) and all(r.status == "completed" for r in state.analyzer_runs)
+        if state.scout_only:
+            state.final_verification_state = "scout_complete" if complete else "scout_incomplete"
+        elif not state.findings:
+            state.final_verification_state = "no_candidates" if complete else "analysis_incomplete"
+        elif any(f.source != "local-heuristic" for f in state.findings):
+            state.final_verification_state = "human_review_required"
+            state.feedback.append("Real analyzer candidates require general PoC synthesis; fixture-only Red Team is not applicable.")
+        return state
+
+    def route_after_scout(state: RuntimeState) -> str:
+        return "red_team" if state.final_verification_state == "not_started" else "report"
 
     def red_team_node(state: RuntimeState) -> RuntimeState:
         return red_team.generate_and_validate(state)
@@ -96,9 +112,9 @@ def build_workflow(runner: ControlledRunner | None = None):
     graph.add_node("judge", judge_node)
     graph.add_node("report", report_node)
     graph.add_edge(START, "ingest")
-    graph.add_edge("ingest", "static_analysis")
+    graph.add_conditional_edges("ingest", lambda state: "report" if state.final_verification_state == "invalid_project" else "static_analysis")
     graph.add_edge("static_analysis", "scout")
-    graph.add_edge("scout", "red_team")
+    graph.add_conditional_edges("scout", route_after_scout, {"report": "report", "red_team": "red_team"})
     graph.add_conditional_edges("red_team", route_after_exploit, {"blue_team": "blue_team", "discard": "discard"})
     graph.add_edge("discard", "report")
     graph.add_edge("blue_team", "judge")

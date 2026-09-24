@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from sentinel.schemas.analysis import AnalyzerRun
 from sentinel.schemas.artifacts import ExploitArtifact, PatchArtifact
 from sentinel.schemas.execution import ExecutionResult, JudgeResult
 from sentinel.schemas.vulnerability import VulnerabilityFinding
@@ -24,6 +25,9 @@ class RuntimeState(BaseModel):
     ast_context: dict[str, object] = Field(default_factory=dict)
     natspec_context: dict[str, str] = Field(default_factory=dict)
     slither_result: ExecutionResult | None = None
+    mythril_results: list[ExecutionResult] = Field(default_factory=list)
+    analyzer_runs: list[AnalyzerRun] = Field(default_factory=list)
+    scout_only: bool = False
     aderyn_result: ExecutionResult | None = None
     findings: list[VulnerabilityFinding] = Field(default_factory=list)
     scout_results: list[str] = Field(default_factory=list)

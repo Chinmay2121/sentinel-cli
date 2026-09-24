@@ -18,7 +18,10 @@ def test_runner_rejects_untrusted_commands(tmp_path: Path) -> None:
         ControlledRunner().run(["sh", "-c", "echo unsafe"], tmp_path)
 
 
-def test_runner_records_missing_allowlisted_tool(tmp_path: Path) -> None:
+def test_runner_records_missing_allowlisted_tool(tmp_path: Path, monkeypatch) -> None:
+    def missing(*args, **kwargs):
+        raise FileNotFoundError("forge unavailable")
+    monkeypatch.setattr("sentinel.runner.subprocess.run", missing)
     result = ControlledRunner().run(["forge", "build"], tmp_path)
     assert not result.success
     assert result.exit_code == -1
