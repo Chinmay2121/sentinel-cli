@@ -71,7 +71,7 @@ def test_report_writes_readable_solidity_artifacts(tmp_path: Path) -> None:
     report_path = write_report(state, tmp_path)
     artifact_names = {Path(path).name for path in state.report_artifacts}
     assert report_path.is_file()
-    assert any(name.endswith("__Contract.patched.sol") for name in artifact_names)
+    assert any(name.endswith("__Contract.patch.sol") for name in artifact_names)
     assert any(name.endswith("__demo.exploit.t.sol") for name in artifact_names)
     assert "Saved patched Solidity file" in report_path.read_text(encoding="utf-8")
     assert (tmp_path / f"{report_path.stem}__summary.json").is_file()

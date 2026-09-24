@@ -1,0 +1,15 @@
+{
+  "finding_id": "mythril-cd4d0a8cbfb5b03d",
+  "type": "SWC-107",
+  "severity": "medium",
+  "location": {
+    "file": "src/VulnerableVault.sol",
+    "line": 15
+  },
+  "what_was_observed": "State access after external call\nWrite to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state.",
+  "evidence": [
+    "mythril:SWC-107: Write to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state."
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

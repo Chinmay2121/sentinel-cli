@@ -1,0 +1,15 @@
+{
+  "finding_id": "heuristic-reentrancy",
+  "type": "external-call-order",
+  "severity": "high",
+  "location": {
+    "file": "src/VulnerableVault.sol",
+    "line": 13
+  },
+  "what_was_observed": "Demo heuristic: external call before balance update; requires validation.",
+  "evidence": [
+    "Demo-only lexical pattern; not a Slither or Mythril result"
+  ],
+  "pipeline_status": "selected_for_agentic_validation",
+  "patch_file": null
+}
