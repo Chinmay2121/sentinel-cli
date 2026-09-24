@@ -1,8 +1,12 @@
+import json
 from pathlib import Path
 
 import typer
 
 from sentinel.config import settings
+from sentinel.policy import evaluate_policy, load_policy
+from sentinel.reporting.sarif import render_sarif
+from sentinel.schemas.state import RuntimeState
 from sentinel.service import run_scan
 
 app = typer.Typer(help="Sentinel: closed-loop smart-contract security research CLI.")
@@ -36,6 +40,26 @@ def scan(
     typer.echo(f"Audit report: {final_state.final_report_path}")
     if scout_only and final_state.final_verification_state != "scout_complete":
         raise typer.Exit(code=2)
+
+
+@app.command()
+def gate(
+    ledger: Path = typer.Argument(..., exists=True, dir_okay=False),  # noqa: B008
+    baseline: Path | None = typer.Option(None, "--baseline", exists=True, dir_okay=False),  # noqa: B008
+    policy: Path = typer.Option(Path("sentinel-policy.yml"), "--policy"),  # noqa: B008
+    sarif: Path | None = typer.Option(None, "--sarif"),  # noqa: B008
+) -> None:
+    """Evaluate a persisted ledger against an explicit local release policy."""
+    current = RuntimeState.model_validate_json(ledger.read_text(encoding="utf-8"))
+    previous = RuntimeState.model_validate_json(baseline.read_text(encoding="utf-8")) if baseline else None
+    decision = evaluate_policy(current, load_policy(policy), previous)
+    if sarif:
+        sarif.write_text(json.dumps(render_sarif(current), indent=2) + "\n", encoding="utf-8")
+    typer.echo(f"Sentinel release gate: {decision.status}")
+    for reason in decision.reasons:
+        typer.echo(f"- {reason}")
+    if decision.status == "blocked":
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

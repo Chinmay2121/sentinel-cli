@@ -2,19 +2,28 @@ import os
 import re
 import subprocess
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from sentinel.schemas.execution import ExecutionResult
 
 ALLOWED_COMMANDS = frozenset({"solc", "slither", "myth", "aderyn", "forge", "cast", "docker"})
+CommandObserver = Callable[[str, Sequence[str], Path, ExecutionResult | None], None]
 
 
 class ControlledRunner:
     """Run only framework-owned local developer tools; never executes LLM commands."""
 
-    def __init__(self, timeout_seconds: int = 120) -> None:
+    def __init__(self, timeout_seconds: int = 120, observer: CommandObserver | None = None) -> None:
         self.timeout_seconds = timeout_seconds
+        self.observer = observer
+
+    def _emit(self, status: str, command: Sequence[str], cwd: Path, result: ExecutionResult | None = None) -> None:
+        if self.observer:
+            try:
+                self.observer(status, command, cwd, result)
+            except Exception:  # noqa: BLE001 - telemetry cannot affect execution
+                return
 
     def run(self, command: Sequence[str], cwd: Path, env: Mapping[str, str] | None = None) -> ExecutionResult:
         executable = Path(command[0]).name if command else ""
@@ -27,26 +36,33 @@ class ControlledRunner:
         if env is not None and set(env) - {"SOLC", "SOLC_VERSION", "MYTHRIL_DIR"}:
             raise ValueError("Only compiler environment and Mythril workspace overrides are allowed")
         started = time.monotonic()
+        self._emit("started", command, cwd)
         try:
             completed = subprocess.run(
                 list(command), cwd=cwd, capture_output=True, text=True,
                 env={**os.environ, **(dict(env) if env else {})},
                 timeout=self.timeout_seconds, check=False,
             )
-            return ExecutionResult(
+            result = ExecutionResult(
                 command=list(command), cwd=str(cwd), exit_code=completed.returncode,
                 stdout=completed.stdout, stderr=completed.stderr,
                 duration_seconds=time.monotonic() - started,
                 success=completed.returncode == 0,
             )
+            self._emit("completed", command, cwd, result)
+            return result
         except subprocess.TimeoutExpired as exc:
-            return ExecutionResult(
+            result = ExecutionResult(
                 command=list(command), cwd=str(cwd), exit_code=None,
                 stdout=_decode(exc.stdout), stderr=_decode(exc.stderr),
                 duration_seconds=time.monotonic() - started, timed_out=True,
             )
+            self._emit("completed", command, cwd, result)
+            return result
         except OSError as exc:
-            return ExecutionResult.failed(list(command), str(cwd), str(exc))
+            result = ExecutionResult.failed(list(command), str(cwd), str(exc))
+            self._emit("completed", command, cwd, result)
+            return result
 
 
 def _decode(value: str | bytes | None) -> str:

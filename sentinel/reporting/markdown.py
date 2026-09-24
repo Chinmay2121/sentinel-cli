@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sentinel.reporting.sarif import render_sarif
 from sentinel.schemas.state import RuntimeState
 
 
@@ -125,6 +126,9 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
         patched_path.write_text(source, encoding="utf-8")
         state.report_artifacts.append(str(patched_path))
     report_path.write_text(render_report(state), encoding="utf-8")
+    sarif_path = report_path.with_suffix(".sarif")
+    sarif_path.write_text(json.dumps(render_sarif(state), indent=2) + "\n", encoding="utf-8")
+    state.report_artifacts.append(str(sarif_path))
     report_path.with_suffix(".json").write_text(state.json_ledger(), encoding="utf-8")
     summary_path = output_dir / f"{stem}__summary.json"
     summary_path.write_text(json.dumps({

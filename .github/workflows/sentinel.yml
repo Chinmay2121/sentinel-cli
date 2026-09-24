@@ -13,8 +13,12 @@ jobs:
         with:
           python-version: "3.12"
       - uses: foundry-rs/foundry-toolchain@v1
-      - run: python -m pip install .
+      - run: python -m pip install '.[dev]'
       - run: sentinel scan ./examples/vulnerable_reentrancy --mock --output ./reports
-      - name: Require verified fixture remediation
+      - name: Export SARIF and evaluate release policy
         run: |
-          grep -R "Final Outcome" -A2 reports | grep -q "\*\*verified\*\*"
+          ledger=$(find reports -name 'sentinel-report-*.json' | head -1)
+          sentinel gate "$ledger" --sarif reports/sentinel.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/sentinel.sarif

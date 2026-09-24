@@ -3,8 +3,11 @@ from pathlib import Path
 
 from sentinel.config import settings
 from sentinel.graph.workflow import build_workflow
+from sentinel.monitoring import evaluate_monitors
 from sentinel.reporting.markdown import write_report
+from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RuntimeState
+from sentinel.telemetry import RunTelemetry
 
 
 def run_scan(
@@ -14,6 +17,7 @@ def run_scan(
     max_retries: int | None = None,
     mock: bool = False,
     scout_only: bool = False,
+    telemetry: RunTelemetry | None = None,
 ) -> RuntimeState:
     """Run a local Foundry audit and persist its report ledger.
 
@@ -32,9 +36,23 @@ def run_scan(
     state.feedback.append(f"Maximum patch retries configured: {state.max_retries}")
     workspace: Path | None = None
     try:
-        final_state = RuntimeState.model_validate(build_workflow().invoke(state))
+        def phase_observer(phase: str, current: RuntimeState, status: str, duration: float) -> None:
+            if telemetry:
+                telemetry.emit("phase", status, phase.replace("_", " "), duration_seconds=round(duration, 3))
+
+        def command_observer(status: str, command, cwd: Path, result) -> None:
+            if telemetry:
+                telemetry.emit(
+                    "command", status, " ".join(command), cwd=str(cwd),
+                    duration_seconds=result.duration_seconds if result else 0.0,
+                    success=result.success if result else None,
+                )
+
+        runner = ControlledRunner(settings.command_timeout_seconds, observer=command_observer if telemetry else None)
+        final_state = RuntimeState.model_validate(build_workflow(runner=runner, observer=phase_observer if telemetry else None).invoke(state))
         workspace = Path(final_state.workspace_path) if final_state.workspace_path else None
         final_state.workspace_path = None
+        final_state.alerts = evaluate_monitors(final_state)
         write_report(final_state, output or settings.output_dir)
         return final_state
     finally:

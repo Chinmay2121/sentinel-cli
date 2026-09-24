@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sentinel.schemas.analysis import AnalyzerRun
 from sentinel.schemas.artifacts import ExploitArtifact, PatchArtifact
 from sentinel.schemas.execution import ExecutionResult, JudgeResult
+from sentinel.schemas.operations import AlertRecord
 from sentinel.schemas.vulnerability import VulnerabilityFinding
 
 
@@ -24,6 +25,9 @@ class RuntimeState(BaseModel):
     source_files: list[str] = Field(default_factory=list)
     compiler_info: dict[str, str] = Field(default_factory=dict)
     ast_context: dict[str, object] = Field(default_factory=dict)
+    protocol_map: dict[str, object] = Field(default_factory=dict)
+    risk_assessment: dict[str, object] = Field(default_factory=dict)
+    alerts: list[AlertRecord] = Field(default_factory=list)
     natspec_context: dict[str, str] = Field(default_factory=dict)
     slither_result: ExecutionResult | None = None
     mythril_results: list[ExecutionResult] = Field(default_factory=list)

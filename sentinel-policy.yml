@@ -1,0 +1,3 @@
+# Local CI policy. Only findings introduced relative to --baseline are gated.
+block_severity: high
+require_complete_coverage: true

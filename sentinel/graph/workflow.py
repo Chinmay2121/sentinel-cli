@@ -1,6 +1,8 @@
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from time import monotonic
 
 from langgraph.graph import END, START, StateGraph
 
@@ -15,11 +17,15 @@ from sentinel.llm.gemini import GeminiProvider, GeminiScout
 from sentinel.llm.mock import MockProvider
 from sentinel.llm.ollama import OllamaBlueTeam
 from sentinel.llm.openai import OpenAIRedTeam
+from sentinel.protocol import build_protocol_map
+from sentinel.risk import assess_protocol_risk
 from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RetryRecord, RuntimeState
 
+WorkflowObserver = Callable[[str, RuntimeState, str, float], None]
 
-def build_workflow(runner: ControlledRunner | None = None):
+
+def build_workflow(runner: ControlledRunner | None = None, observer: WorkflowObserver | None = None):
     controlled = runner or ControlledRunner(settings.command_timeout_seconds)
     foundry = FoundryRunner(controlled)
     if settings.llm_provider == "gemini":
@@ -31,6 +37,17 @@ def build_workflow(runner: ControlledRunner | None = None):
     red_team = RedTeam(foundry, red_blue_provider)
     blue_team = BlueTeam(red_blue_provider)
     judge = Judge(foundry)
+
+    def observed(name: str, handler: Callable[[RuntimeState], RuntimeState]):
+        def wrapped(state: RuntimeState) -> RuntimeState:
+            started = monotonic()
+            if observer:
+                observer(name, state, "started", 0.0)
+            result = handler(state)
+            if observer:
+                observer(name, result, "completed", monotonic() - started)
+            return result
+        return wrapped
 
     def ingest(state: RuntimeState) -> RuntimeState:
         project = Path(state.project_path).resolve()
@@ -48,6 +65,7 @@ def build_workflow(runner: ControlledRunner | None = None):
             return state
         state.workspace_path = str(workspace)
         state.source_files, state.original_source, state.ast_context = files, original, context
+        state.protocol_map = build_protocol_map(original)
         return state
 
     def static_analysis(state: RuntimeState) -> RuntimeState:
@@ -63,6 +81,7 @@ def build_workflow(runner: ControlledRunner | None = None):
     def scout_node(state: RuntimeState) -> RuntimeState:
         scout = Scout(MockProvider() if state.mock_mode else GeminiScout(settings.scout_model), controlled)
         state = scout.analyze(state)
+        state.risk_assessment = assess_protocol_risk(state.protocol_map, state.findings)
         # A bounded Mythril sample is intentional: it prevents a large multi-contract
         # corpus from turning a normal scan into an unbounded symbolic-execution job.
         # Only actual tool failures make the Scout coverage incomplete.
@@ -124,14 +143,14 @@ def build_workflow(runner: ControlledRunner | None = None):
         return state
 
     graph = StateGraph(RuntimeState)
-    graph.add_node("ingest", ingest)
-    graph.add_node("static_analysis", static_analysis)
-    graph.add_node("scout", scout_node)
-    graph.add_node("red_team", red_team_node)
-    graph.add_node("discard", discard_node)
-    graph.add_node("blue_team", blue_team_node)
-    graph.add_node("judge", judge_node)
-    graph.add_node("report", report_node)
+    graph.add_node("ingest", observed("ingest", ingest))
+    graph.add_node("static_analysis", observed("static_analysis", static_analysis))
+    graph.add_node("scout", observed("scout", scout_node))
+    graph.add_node("red_team", observed("red_team", red_team_node))
+    graph.add_node("discard", observed("discard", discard_node))
+    graph.add_node("blue_team", observed("blue_team", blue_team_node))
+    graph.add_node("judge", observed("judge", judge_node))
+    graph.add_node("report", observed("report", report_node))
     graph.add_edge(START, "ingest")
     graph.add_conditional_edges("ingest", lambda state: "report" if state.final_verification_state == "invalid_project" else "static_analysis")
     graph.add_edge("static_analysis", "scout")
