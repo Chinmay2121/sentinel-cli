@@ -61,6 +61,16 @@ Use `--scout-only` for evidence collection without PoC or repair. Start the loca
 
 ## Modern Solidity 0.8.x challenge corpus
 
+Fetch supported public corpora through the pinned dataset registry. It leaves data outside Git and refuses to overwrite an existing checkout:
+
+```bash
+make list-datasets
+make fetch-smartbugs-curated
+make fetch-damn-vulnerable-defi
+```
+
+See [dataset guidance](docs/DATASETS.md) for each corpus's role, licensing boundary, and evaluation caveats.
+
 `datasets/damn-vulnerable-defi` contains Damn Vulnerable DeFi, a Foundry-based corpus of realistic intentionally vulnerable DeFi challenges. Its source contracts use Solidity `0.8.25`, so install that compiler before running it:
 
 ```bash

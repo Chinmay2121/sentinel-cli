@@ -12,6 +12,21 @@ test:
 lint:
 	$(PYTHON) -m ruff check sentinel tests
 
+list-datasets:
+	$(PYTHON) scripts/fetch_datasets.py --help
+
+fetch-smartbugs-curated:
+	$(PYTHON) scripts/fetch_datasets.py smartbugs-curated
+
+fetch-damn-vulnerable-defi:
+	$(PYTHON) scripts/fetch_datasets.py damn-vulnerable-defi
+
+fetch-defi-vuln-labs:
+	$(PYTHON) scripts/fetch_datasets.py defi-vuln-labs
+
+fetch-forge-artifacts:
+	$(PYTHON) scripts/fetch_datasets.py forge-artifacts
+
 serve:
 	$(PYTHON) -m sentinel.api
 
