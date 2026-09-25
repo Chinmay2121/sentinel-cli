@@ -16,8 +16,11 @@ SmartBugs Curated is appropriate for labeled vulnerable-case detection but needs
 ```bash
 make list-datasets
 make fetch-smartbugs-curated
+make prepare-smartbugs-starter
 make fetch-damn-vulnerable-defi
 make prepare-forge-artifacts
 ```
+
+`make prepare-smartbugs-starter` copies four reviewed corpus files into isolated, ignored Foundry wrappers and writes a local manifest. Then run `make benchmark-smartbugs-starter` for a Slither-only live detection run. The starter set contains only known vulnerable cases, so it can report recall but cannot support a meaningful precision, false-positive rate, or F1 result without clean controls.
 
 Each external repository retains its own licence and attribution terms. This repository stores only the acquisition metadata and never republishes the corpus content.

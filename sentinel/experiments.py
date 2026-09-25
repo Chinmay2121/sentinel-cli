@@ -98,10 +98,17 @@ def run_experiment(
             "ledger": state.final_report_path if state else None, "error": scan_error,
         })
     known = [row for row in records if row["ground_truth"] != "unknown"]
-    tp = sum(row["detected"] and row["ground_truth"] == "vulnerable" for row in known)
-    fp = sum(row["detected"] and row["ground_truth"] == "clean" for row in known)
-    fn = sum(not row["detected"] and row["ground_truth"] == "vulnerable" for row in known)
-    tn = sum(not row["detected"] and row["ground_truth"] == "clean" for row in known)
+    measured = [row for row in known if row["coverage_complete"]]
+    tp = sum(row["detected"] and row["ground_truth"] == "vulnerable" for row in measured)
+    fp = sum(row["detected"] and row["ground_truth"] == "clean" for row in measured)
+    fn = sum(not row["detected"] and row["ground_truth"] == "vulnerable" for row in measured)
+    tn = sum(not row["detected"] and row["ground_truth"] == "clean" for row in measured)
+    metrics = summarize_benchmark(int(tp), int(fp), int(fn), int(tn)).model_dump(mode="json")
+    clean_controls = sum(row["ground_truth"] == "clean" for row in measured)
+    if not clean_controls:
+        metrics["precision"] = None
+        metrics["f1_score"] = None
+        metrics["false_positive_rate"] = None
     by_class: dict[str, object] = {}
     for label in sorted({str(row["vulnerability_class"]) for row in known}):
         rows = [row for row in known if row["vulnerability_class"] == label]
@@ -118,7 +125,14 @@ def run_experiment(
             "red_team_model": settings.red_team_model, "blue_team_model": settings.blue_team_model,
             "command_timeout_seconds": settings.command_timeout_seconds,
         },
-        "metrics": summarize_benchmark(int(tp), int(fp), int(fn), int(tn)).model_dump(mode="json"),
+        "metrics": metrics,
+        "metric_scope": {
+            "labeled_cases": len(known),
+            "completed_labeled_cases": len(measured),
+            "incomplete_labeled_cases": len(known) - len(measured),
+            "clean_controls": clean_controls,
+            "precision_and_f1_available": bool(clean_controls),
+        },
         "poC_success_rate": sum(bool(row["confirmed"]) for row in records) / sum(row["ground_truth"] == "vulnerable" for row in records) if any(row["ground_truth"] == "vulnerable" for row in records) else None,
         "validated_repair_rate": sum(bool(row["verified"]) for row in records) / sum(bool(row["confirmed"]) for row in records) if any(bool(row["confirmed"]) for row in records) else None,
         "average_retries": sum(int(row["retries"]) for row in records) / len(records) if records else None,

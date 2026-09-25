@@ -27,6 +27,12 @@ fetch-defi-vuln-labs:
 fetch-forge-artifacts:
 	$(PYTHON) scripts/fetch_datasets.py forge-artifacts
 
+prepare-smartbugs-starter:
+	$(PYTHON) scripts/prepare_smartbugs_cases.py
+
+benchmark-smartbugs-starter: prepare-smartbugs-starter
+	$(PYTHON) -m sentinel.cli benchmark datasets/manifests/smartbugs-curated-starter.local.json --profile slither --output reports/experiments/smartbugs-curated
+
 serve:
 	$(PYTHON) -m sentinel.api
 

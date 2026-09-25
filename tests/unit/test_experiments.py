@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from sentinel.experiments import run_experiment
+from sentinel.schemas.analysis import AnalyzerRun
 from sentinel.schemas.state import RuntimeState
 from sentinel.schemas.vulnerability import VulnerabilityFinding
 
@@ -18,7 +19,10 @@ def test_experiment_metrics_ignore_unlabeled_cases(tmp_path: Path) -> None:
         findings = [] if project.name == "clean" else [VulnerabilityFinding(
             id=project.name, source="test", detector="test", description="candidate",
         )]
-        return RuntimeState(project_path=str(project), findings=findings, final_report_path=str(kwargs["output"] / "report.md"))
+        return RuntimeState(
+            project_path=str(project), findings=findings, final_report_path=str(kwargs["output"] / "report.md"),
+            analyzer_runs=[AnalyzerRun(tool="slither", target=".", status="completed")],
+        )
 
     report = run_experiment(manifest, tmp_path / "reports", "slither", scan=fake_scan)
 
@@ -26,6 +30,26 @@ def test_experiment_metrics_ignore_unlabeled_cases(tmp_path: Path) -> None:
     assert report["metrics"]["recall"] == 1.0
     assert report["unlabeled_cases"] == 1
     assert report["profile"]["enabled_analyzers"] == ["slither"]
+
+
+def test_experiment_excludes_incomplete_cases_and_masks_metrics_without_clean_controls(tmp_path: Path) -> None:
+    manifest = tmp_path / "experiment.json"
+    manifest.write_text(json.dumps({"name": "unit", "cases": [
+        {"id": "unavailable", "project_path": "unavailable", "group": "held_out", "ground_truth": "vulnerable"},
+    ]}), encoding="utf-8")
+
+    def incomplete_scan(project: Path, **kwargs) -> RuntimeState:
+        return RuntimeState(
+            project_path=str(project),
+            analyzer_runs=[AnalyzerRun(tool="slither", target=".", status="failed")],
+        )
+
+    report = run_experiment(manifest, tmp_path / "reports", "slither", scan=incomplete_scan)
+
+    assert report["metrics"]["evaluated"] == 0
+    assert report["metrics"]["precision"] is None
+    assert report["metrics"]["recall"] is None
+    assert report["metric_scope"]["incomplete_labeled_cases"] == 1
 
 
 def test_experiment_rejects_unknown_profile(tmp_path: Path) -> None:

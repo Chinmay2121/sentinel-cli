@@ -19,7 +19,7 @@ Create a JSON manifest with a local Foundry project for each case:
 }
 ```
 
-`group` is one of `fixture`, `held_out`, `audit`, or `clean`. `ground_truth` is `vulnerable`, `clean`, or `unknown`. Unknown labels are preserved in the report but excluded from precision, recall, F1, and false-positive-rate denominators.
+`group` is one of `fixture`, `held_out`, `audit`, or `clean`. `ground_truth` is `vulnerable`, `clean`, or `unknown`. Unknown labels are preserved in the report but excluded from metric denominators. Failed, unavailable, timed-out, and otherwise incomplete analyzer cases are also excluded, with their count recorded in `metric_scope`. Precision, F1, and false-positive rate are withheld until at least one completed clean control is present.
 
 The checked-in example manifest uses the four reviewed fixtures only. It is an engineering check, not held-out evidence.
 

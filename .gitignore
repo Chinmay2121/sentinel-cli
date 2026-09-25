@@ -5,9 +5,11 @@ __pycache__/
 .ruff_cache/
 reports/*.md
 reports/*.json
+reports/experiments/
 out/
 cache/
 datasets/*
 !datasets/.gitkeep
 !datasets/manifests/
 !datasets/manifests/.gitkeep
+datasets/manifests/*.local.json
