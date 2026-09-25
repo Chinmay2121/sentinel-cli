@@ -32,5 +32,8 @@ class BenchmarkSummary(BaseModel):
     true_positives: int = 0
     false_positives: int = 0
     false_negatives: int = 0
+    true_negatives: int = 0
     precision: float | None = None
     recall: float | None = None
+    f1_score: float | None = None
+    false_positive_rate: float | None = None

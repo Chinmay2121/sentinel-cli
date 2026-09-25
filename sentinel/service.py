@@ -5,6 +5,7 @@ from sentinel.config import settings
 from sentinel.graph.workflow import build_workflow
 from sentinel.monitoring import evaluate_monitors
 from sentinel.reporting.markdown import write_report
+from sentinel.reproducibility import capture_reproducibility
 from sentinel.runner import ControlledRunner
 from sentinel.schemas.state import RuntimeState
 from sentinel.telemetry import RunTelemetry
@@ -17,6 +18,8 @@ def run_scan(
     max_retries: int | None = None,
     mock: bool = False,
     scout_only: bool = False,
+    experiment_profile: str = "sentinel-full",
+    enabled_analyzers: list[str] | None = None,
     telemetry: RunTelemetry | None = None,
 ) -> RuntimeState:
     """Run a local Foundry audit and persist its report ledger.
@@ -30,10 +33,13 @@ def run_scan(
     state = RuntimeState(
         project_path=str(project),
         mock_mode=mock,
+        experiment_profile=experiment_profile,
+        enabled_analyzers=enabled_analyzers or ["slither", "mythril"],
         max_retries=settings.max_retries if max_retries is None else max_retries,
         scout_only=scout_only,
     )
     state.feedback.append(f"Maximum patch retries configured: {state.max_retries}")
+    state.reproducibility = capture_reproducibility()
     workspace: Path | None = None
     try:
         def phase_observer(phase: str, current: RuntimeState, status: str, duration: float) -> None:

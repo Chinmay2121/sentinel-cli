@@ -21,6 +21,8 @@ class RuntimeState(BaseModel):
     project_path: str
     workspace_path: str | None = None
     mock_mode: bool = False
+    experiment_profile: str = "sentinel-full"
+    enabled_analyzers: list[str] = Field(default_factory=lambda: ["slither", "mythril"])
     max_retries: int = 5
     source_files: list[str] = Field(default_factory=list)
     compiler_info: dict[str, str] = Field(default_factory=dict)
@@ -50,6 +52,7 @@ class RuntimeState(BaseModel):
     regression_result: ExecutionResult | None = None
     judge_result: JudgeResult | None = None
     gas_metrics: dict[str, object] = Field(default_factory=dict)
+    reproducibility: dict[str, object] = Field(default_factory=dict)
     retry_count: int = 0
     retry_history: list[RetryRecord] = Field(default_factory=list)
     feedback: list[str] = Field(default_factory=list)

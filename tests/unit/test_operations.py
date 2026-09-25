@@ -1,3 +1,5 @@
+import pytest
+
 from sentinel.benchmark import summarize_benchmark
 from sentinel.monitoring import evaluate_monitors
 from sentinel.remediation_guard import requires_human_review
@@ -17,3 +19,4 @@ def test_benchmark_metrics_require_explicit_counts() -> None:
     summary = summarize_benchmark(3, 1, 2)
     assert summary.precision == 0.75
     assert summary.recall == 0.6
+    assert summary.f1_score == pytest.approx(2 / 3)

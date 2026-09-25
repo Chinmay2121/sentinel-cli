@@ -4,6 +4,7 @@ from pathlib import Path
 import typer
 
 from sentinel.config import settings
+from sentinel.experiments import PROFILES, run_experiment
 from sentinel.policy import evaluate_policy, load_policy
 from sentinel.reporting.sarif import render_sarif
 from sentinel.schemas.state import RuntimeState
@@ -60,6 +61,25 @@ def gate(
         typer.echo(f"- {reason}")
     if decision.status == "blocked":
         raise typer.Exit(code=1)
+
+
+@app.command("benchmark")
+def benchmark(
+    manifest: Path = typer.Argument(..., exists=True, dir_okay=False),  # noqa: B008
+    profile: str = typer.Option("scout-union", "--profile", help=f"One of: {', '.join(PROFILES)}"),
+    output: Path = typer.Option(Path("reports/experiments"), "--output"),  # noqa: B008
+    limit: int | None = typer.Option(None, "--limit", min=1),
+    mock: bool = typer.Option(False, "--mock"),
+) -> None:
+    """Run a declared experiment profile and emit label-aware research metrics."""
+    try:
+        report = run_experiment(manifest, output, profile, limit=limit, mock=mock)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    metrics = report["metrics"]
+    typer.echo(f"Sentinel experiment report: {report['report_path']}")
+    typer.echo(f"Labeled cases: {metrics['evaluated']}; unlabeled cases: {report['unlabeled_cases']}")
+    typer.echo(f"Precision: {metrics['precision']}; recall: {metrics['recall']}; F1: {metrics['f1_score']}")
 
 
 if __name__ == "__main__":

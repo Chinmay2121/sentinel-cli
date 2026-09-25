@@ -149,3 +149,14 @@ The GitHub Actions workflow installs Foundry and invokes Sentinel against the re
 ## Evaluation and limitations
 
 Latency, false-positive reduction, gas comparison, and the MPP1 five-minute/30-50% targets are measurements to collect, not claims made by this repository. Gas metrics are reported unavailable when Foundry does not provide a reliable comparison. The current implementation demonstrates isolated single-project workflows and four reviewed vulnerability classes. Cross-contract reasoning, generalized PoC generation, and broad benchmark coverage remain research extensions.
+
+## Reproducible experiments and stronger validation
+
+`sentinel benchmark` runs a declared experiment manifest with baseline and ablation profiles. It records per-case outcomes, label-aware detection metrics, confirmation and validated-repair rates, retries, duration, coverage, and configuration metadata. The four checked-in fixtures are an engineering check only; do not use them as evidence of held-out generalization.
+
+```bash
+sentinel benchmark datasets/manifests/sentinel-evaluation.example.json --profile scout-union --mock
+sentinel benchmark datasets/manifests/sentinel-evaluation.example.json --profile sentinel-full --mock
+```
+
+Projects can add `sentinel-validation.yml` to require positive and security Forge tests plus declared ABI and storage compatibility checks before the Validator accepts a repair. See [experiment workflow](docs/EXPERIMENTS.md) for the manifest format, profiles, metrics, and research-claim boundary.

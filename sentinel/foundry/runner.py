@@ -16,3 +16,6 @@ class FoundryRunner:
 
     def regression(self, project: Path, test_name: str = "testExploit") -> ExecutionResult:
         return self.runner.run(["forge", "test", "--no-match-test", test_name], project)
+
+    def named_test(self, project: Path, test_name: str) -> ExecutionResult:
+        return self.runner.run(["forge", "test", "--match-test", test_name], project)

@@ -75,6 +75,9 @@ def render_report(state: RuntimeState) -> str:
         "## Tool Availability",
         *[f"- **{run.tool}** / `{run.target}`: {_tool_message(run)}" for run in state.analyzer_runs],
         "",
+        "## Reproducibility",
+        *([f"- **{key}:** {value}" for key, value in state.reproducibility.items()] or ["- Runtime metadata was not recorded."]),
+        "",
         "## Notes",
         *([f"- {message}" for message in state.feedback] or ["- No workflow diagnostics."]),
         "",
@@ -157,6 +160,7 @@ def write_report(state: RuntimeState, output_dir: Path) -> Path:
             "evidence": finding.evidence,
         } for finding in state.findings],
         "unknown_risk_triage": state.novelty_assessment,
+        "reproducibility": state.reproducibility,
         "patch": {
             "purpose": state.patch_artifact.rationale if state.patch_artifact else None,
             "changed_file": state.patch_artifact.original_file if state.patch_artifact else None,

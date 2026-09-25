@@ -13,6 +13,12 @@ def test_state_ledger_is_json_serializable() -> None:
     assert '"project_path": "/tmp/project"' in state.json_ledger()
 
 
+def test_report_includes_reproducibility_metadata() -> None:
+    report = render_report(RuntimeState(project_path="/tmp/project", reproducibility={"python": "3.11"}))
+    assert "## Reproducibility" in report
+    assert "**python:** 3.11" in report
+
+
 def test_runner_rejects_untrusted_commands(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         ControlledRunner().run(["sh", "-c", "echo unsafe"], tmp_path)

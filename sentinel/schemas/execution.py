@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ExecutionResult(BaseModel):
@@ -25,3 +25,8 @@ class JudgeResult(BaseModel):
     verified: bool = False
     failure_reason: str = ""
     feedback: str = ""
+    positive_tests_passed: bool | None = None
+    security_tests_passed: bool | None = None
+    abi_compatible: bool | None = None
+    storage_layout_compatible: bool | None = None
+    additional_checks: list[str] = Field(default_factory=list)

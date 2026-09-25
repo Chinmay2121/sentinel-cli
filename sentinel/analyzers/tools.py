@@ -69,9 +69,13 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
                     transaction_count: int = 2, solc_binary: Path | None = None,
                     mythril_binary: Path | None = None,
                     mythril_max_sources: int = 10,
+                    enabled_analyzers: set[str] | None = None,
                     demo_fallback: bool = False) -> AnalysisBundle:
     """Run Slither plus bounded Mythril analysis without unbounded corpus runtimes."""
     project = project.resolve()
+    enabled = enabled_analyzers or {"slither", "mythril"}
+    if not enabled <= {"slither", "mythril"} or not enabled:
+        raise ValueError("At least one supported analyzer must be enabled")
     paths, profile = project_sources(project)
     # Slither follows imports and will otherwise report hundreds of issues in vendored
     # libraries.  Keep the audit focused on the target project's configured source
@@ -85,13 +89,14 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
         return candidate == configured_source or configured_source in candidate.parents
 
     bundle = AnalysisBundle()
-    run, findings = _analyze("slither", ".", ["slither", ".", "--json", "-"], project, runner, parse_slither)
-    findings = [finding for finding in findings if is_project_source(finding)]
-    # The report describes the target-project findings, rather than the scanner's
-    # raw total which also includes imported third-party dependencies.
-    run.finding_count = len(findings)
-    bundle.runs.append(run)
-    bundle.findings.extend(findings)
+    if "slither" in enabled:
+        run, findings = _analyze("slither", ".", ["slither", ".", "--json", "-"], project, runner, parse_slither)
+        findings = [finding for finding in findings if is_project_source(finding)]
+        # The report describes the target-project findings, rather than the scanner's
+        # raw total which also includes imported third-party dependencies.
+        run.finding_count = len(findings)
+        bundle.runs.append(run)
+        bundle.findings.extend(findings)
     # Keep compiler settings/remappings aligned with the default Foundry profile.
     remappings = list(profile.get("remappings", []))
     remapping_file = project / "remappings.txt"
@@ -108,7 +113,7 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
         if "via_ir" in profile:
             solc_settings["viaIR"] = bool(profile["via_ir"])
         settings_file.write_text(json.dumps(solc_settings), encoding="utf-8")
-        selected_paths = paths[:mythril_max_sources]
+        selected_paths = paths[:mythril_max_sources] if "mythril" in enabled else []
         for path in selected_paths:
             myth_command = str(mythril_binary.resolve()) if mythril_binary and mythril_binary.is_file() else "myth"
             command = [myth_command, "analyze", str(path), "-o", "json", "--no-onchain-data",
@@ -129,12 +134,12 @@ def run_scout_tools(project: Path, runner: ControlledRunner, *, mythril_timeout:
                 bundle.runs.append(AnalyzerRun(tool="mythril", target="remaining sources", status="skipped",
                                                diagnostics=["Mythril unavailable; remaining source files were not analyzed"]))
                 break
-        if len(paths) > len(selected_paths):
+        if "mythril" in enabled and len(paths) > len(selected_paths):
             bundle.runs.append(AnalyzerRun(
                 tool="mythril", target="remaining sources", status="skipped",
                 diagnostics=[f"Mythril source limit is {mythril_max_sources}; {len(paths) - len(selected_paths)} source file(s) were not analyzed"],
             ))
-    if not paths:
+    if "mythril" in enabled and not paths:
         bundle.runs.append(AnalyzerRun(tool="mythril", target=".", status="skipped",
                                        diagnostics=["No Solidity source files found"]))
     # Mock mode is an explicitly labeled deterministic fixture workflow. Keep its

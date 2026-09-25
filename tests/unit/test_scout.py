@@ -73,6 +73,14 @@ def test_slither_normalizes_nonzero_finding_output(project):
     assert all(f.status == "candidate" for f in bundle.findings)
 
 
+def test_analyzer_selection_supports_single_tool_baselines(project):
+    runner = AnalyzerRunner()
+    bundle = run_scout_tools(project, runner, enabled_analyzers={"slither"})
+
+    assert [run.tool for run in bundle.runs] == ["slither"]
+    assert [command[0] for command in runner.commands] == ["slither"]
+
+
 def test_mythril_preserves_swc_and_transaction_evidence(project):
     finding = parse_mythril(json.dumps(mythril_payload()), project)[0]
     assert finding.detector == "SWC-107"
