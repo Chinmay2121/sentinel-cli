@@ -1,0 +1,33 @@
+{
+  "name": "reviewed-fixture-engineering-check",
+  "cases": [
+    {
+      "id": "reentrancy-fixture",
+      "project_path": "../../examples/vulnerable_reentrancy",
+      "group": "fixture",
+      "vulnerability_class": "reentrancy",
+      "ground_truth": "vulnerable"
+    },
+    {
+      "id": "access-control-fixture",
+      "project_path": "../../examples/vulnerable_access_control",
+      "group": "fixture",
+      "vulnerability_class": "access_control",
+      "ground_truth": "vulnerable"
+    },
+    {
+      "id": "tx-origin-fixture",
+      "project_path": "../../examples/vulnerable_tx_origin",
+      "group": "fixture",
+      "vulnerability_class": "tx_origin",
+      "ground_truth": "vulnerable"
+    },
+    {
+      "id": "unchecked-call-fixture",
+      "project_path": "../../examples/vulnerable_unchecked_call",
+      "group": "fixture",
+      "vulnerability_class": "unchecked_call",
+      "ground_truth": "vulnerable"
+    }
+  ]
+}
