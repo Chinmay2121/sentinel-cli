@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-8630f4e55dadc774",
+  "type": "arbitrary-send-eth",
+  "severity": "high",
+  "location": {
+    "file": "src/VulnerableTreasury.sol",
+    "line": 11
+  },
+  "what_was_observed": "VulnerableTreasury.sweep(address) (src/VulnerableTreasury.sol#11-13) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n",
+  "evidence": [
+    "slither:arbitrary-send-eth: VulnerableTreasury.sweep(address) (src/VulnerableTreasury.sol#11-13) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

@@ -1,0 +1,15 @@
+{
+  "finding_id": "mythril-78836e6c4e0ec8ca",
+  "type": "SWC-114",
+  "severity": "medium",
+  "location": {
+    "file": "src/VulnerableVault.sol",
+    "line": 13
+  },
+  "what_was_observed": "Transaction Order Dependence\nThe value of the call is dependent on balance or storage write\nThis can lead to race conditions. An attacker may be able to run a transaction after our transaction which can change the value of the call",
+  "evidence": [
+    "mythril:SWC-114: The value of the call is dependent on balance or storage write\nThis can lead to race conditions. An attacker may be able to run a transaction after our transaction which can change the value of the call"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

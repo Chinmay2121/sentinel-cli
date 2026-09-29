@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-09d169ec2c2faa6b",
+  "type": "low-level-calls",
+  "severity": "informational",
+  "location": {
+    "file": "src/VulnerableVault.sol",
+    "line": 11
+  },
+  "what_was_observed": "Low level call in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n",
+  "evidence": [
+    "slither:low-level-calls: Low level call in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

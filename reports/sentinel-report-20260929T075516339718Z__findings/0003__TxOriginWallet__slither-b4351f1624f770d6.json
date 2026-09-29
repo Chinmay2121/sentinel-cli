@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-b4351f1624f770d6",
+  "type": "tx-origin",
+  "severity": "medium",
+  "location": {
+    "file": "src/TxOriginWallet.sol",
+    "line": 11
+  },
+  "what_was_observed": "TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) uses tx.origin for authorization: require(bool,string)(tx.origin == owner,not owner) (src/TxOriginWallet.sol#12)\n",
+  "evidence": [
+    "slither:tx-origin: TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) uses tx.origin for authorization: require(bool,string)(tx.origin == owner,not owner) (src/TxOriginWallet.sol#12)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

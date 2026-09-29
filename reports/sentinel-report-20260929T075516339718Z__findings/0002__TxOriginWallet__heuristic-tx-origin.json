@@ -1,0 +1,15 @@
+{
+  "finding_id": "heuristic-tx-origin",
+  "type": "tx-origin-authentication",
+  "severity": "high",
+  "location": {
+    "file": "src/TxOriginWallet.sol",
+    "line": 3
+  },
+  "what_was_observed": "Demo heuristic: authorization uses tx.origin instead of msg.sender.",
+  "evidence": [
+    "Demo-only lexical pattern; not a Slither or Mythril result"
+  ],
+  "pipeline_status": "selected_for_agentic_validation",
+  "patch_file": "sentinel-report-20260929T075516339718Z__TxOriginWallet.patch.sol"
+}

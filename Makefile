@@ -9,6 +9,9 @@ install:
 test:
 	$(PYTHON) -m pytest
 
+test-ui:
+	node --test tests/ui/dashboard.test.cjs
+
 lint:
 	$(PYTHON) -m ruff check sentinel tests
 

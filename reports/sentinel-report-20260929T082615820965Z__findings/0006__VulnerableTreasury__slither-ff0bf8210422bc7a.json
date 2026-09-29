@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-ff0bf8210422bc7a",
+  "type": "immutable-states",
+  "severity": "optimization",
+  "location": {
+    "file": "src/VulnerableTreasury.sol",
+    "line": 5
+  },
+  "what_was_observed": "VulnerableTreasury.owner (src/VulnerableTreasury.sol#5) should be immutable \n",
+  "evidence": [
+    "slither:immutable-states: VulnerableTreasury.owner (src/VulnerableTreasury.sol#5) should be immutable \n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

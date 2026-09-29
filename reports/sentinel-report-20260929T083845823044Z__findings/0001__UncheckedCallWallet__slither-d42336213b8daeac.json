@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-d42336213b8daeac",
+  "type": "reentrancy-eth",
+  "severity": "high",
+  "location": {
+    "file": "src/UncheckedCallWallet.sol",
+    "line": 11
+  },
+  "what_was_observed": "Reentrancy in UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15):\n\tExternal calls:\n\t- recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n\tState variables written after the call(s):\n\t- balances[msg.sender] = 0 (src/UncheckedCallWallet.sol#14)\n\tUncheckedCallWallet.balances (src/UncheckedCallWallet.sol#5) can be used in cross function reentrancies:\n\t- UncheckedCallWallet.balances (src/UncheckedCallWallet.sol#5)\n\t- UncheckedCallWallet.deposit() (src/UncheckedCallWallet.sol#7-9)\n\t- UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15)\n",
+  "evidence": [
+    "slither:reentrancy-eth: Reentrancy in UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15):\n\tExternal calls:\n\t- recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n\tState variables written after the call(s):\n\t- balances[msg.sender] = 0 (src/UncheckedCallWallet.sol#14)\n\tUncheckedCallWallet.balances (src/UncheckedCallWallet.sol#5) can be used in cross function reentrancies:\n\t- UncheckedCallWallet.balances (src/UncheckedCallWallet.sol#5)\n\t- UncheckedCallWallet.deposit() (src/UncheckedCallWallet.sol#7-9)\n\t- UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

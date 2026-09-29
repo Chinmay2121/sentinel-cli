@@ -11,6 +11,7 @@ def test_health_and_dashboard_are_available() -> None:
     client = TestClient(app)
     assert client.get("/health").json() == {"status": "ok", "scope": "local-only"}
     assert "Evidence before conclusions" in client.get("/").text
+    assert "Scan a project" in client.get("/").text
 
 
 def test_environment_reports_tools_and_examples(monkeypatch) -> None:
@@ -121,3 +122,43 @@ def test_compare_endpoint_reports_introduced_findings(monkeypatch, tmp_path: Pat
 
     assert response.status_code == 200
     assert response.json()["introduced"][0]["id"] == "new"
+
+
+def test_buffered_live_events_are_sent_without_waiting(monkeypatch) -> None:
+    from sentinel.api import RUNS
+    from sentinel.telemetry import RunTelemetry
+
+    telemetry = RunTelemetry()
+    telemetry.emit("phase", "started", "scout")
+    telemetry.finish("completed", "Scan complete")
+    monkeypatch.setitem(RUNS, telemetry.run_id, telemetry)
+
+    def unexpected_wait(*args, **kwargs):
+        raise AssertionError("Buffered events should be delivered immediately")
+
+    monkeypatch.setattr(telemetry.condition, "wait", unexpected_wait)
+    response = TestClient(app).get(f"/runs/{telemetry.run_id}/events")
+    assert response.status_code == 200
+    assert '"summary": "scout"' in response.text
+    assert '"summary": "Scan complete"' in response.text
+
+
+def test_downloaded_ledger_retains_verbose_evidence(monkeypatch, tmp_path: Path) -> None:
+    from sentinel.schemas.execution import ExecutionResult
+
+    state = RuntimeState(
+        project_path="/project",
+        findings=[VulnerabilityFinding(
+            id="candidate", source="slither", detector="reentrancy", file="src/Vault.sol",
+            description="External call before state update", evidence=["full supporting evidence"],
+            raw_output='{"detector": "reentrancy", "details": "original scanner output"}',
+        )],
+        original_source={"src/Vault.sol": "original source"},
+        patched_source={"src/Vault.sol": "patched source"},
+        exploit_result=ExecutionResult(command=["forge", "test"], cwd="/project", stdout="full execution trace"),
+    )
+    (tmp_path / "scan.json").write_text(state.model_dump_json(), encoding="utf-8")
+    monkeypatch.setattr("sentinel.api.settings.output_dir", tmp_path)
+    response = TestClient(app).get("/reports/scan.json")
+    assert response.status_code == 200
+    assert response.json() == state.model_dump(mode="json")

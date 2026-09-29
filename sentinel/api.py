@@ -158,7 +158,10 @@ def stream_run_events(run_id: str) -> StreamingResponse:
         last_id = 0
         while True:
             with telemetry.condition:
-                telemetry.condition.wait(timeout=15)
+                telemetry.condition.wait_for(
+                    lambda cursor=last_id: len(telemetry.events) > cursor or telemetry.status in {"completed", "failed"},
+                    timeout=15,
+                )
                 pending = [event for event in telemetry.events if int(event["id"]) > last_id]
                 status = telemetry.status
             for event in pending:

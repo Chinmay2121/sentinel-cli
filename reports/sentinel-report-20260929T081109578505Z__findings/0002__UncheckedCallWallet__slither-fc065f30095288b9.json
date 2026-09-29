@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-fc065f30095288b9",
+  "type": "unchecked-lowlevel",
+  "severity": "medium",
+  "location": {
+    "file": "src/UncheckedCallWallet.sol",
+    "line": 11
+  },
+  "what_was_observed": "UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15) ignores return value by recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n",
+  "evidence": [
+    "slither:unchecked-lowlevel: UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15) ignores return value by recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-b1437ea22b5bc909",
+  "type": "missing-zero-check",
+  "severity": "low",
+  "location": {
+    "file": "src/TxOriginWallet.sol",
+    "line": 11
+  },
+  "what_was_observed": "TxOriginWallet.withdraw(address).recipient (src/TxOriginWallet.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n",
+  "evidence": [
+    "slither:missing-zero-check: TxOriginWallet.withdraw(address).recipient (src/TxOriginWallet.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

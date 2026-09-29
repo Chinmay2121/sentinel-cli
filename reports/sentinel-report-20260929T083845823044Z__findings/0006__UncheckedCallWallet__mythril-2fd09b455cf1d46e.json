@@ -1,0 +1,15 @@
+{
+  "finding_id": "mythril-2fd09b455cf1d46e",
+  "type": "SWC-107",
+  "severity": "medium",
+  "location": {
+    "file": "src/UncheckedCallWallet.sol",
+    "line": 14
+  },
+  "what_was_observed": "State access after external call\nWrite to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state.",
+  "evidence": [
+    "mythril:SWC-107: Write to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state."
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

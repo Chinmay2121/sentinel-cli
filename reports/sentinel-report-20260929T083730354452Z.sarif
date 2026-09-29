@@ -1,0 +1,215 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Sentinel",
+          "rules": [
+            {
+              "id": "missing-authorization",
+              "name": "missing-authorization",
+              "shortDescription": {
+                "text": "missing authorization"
+              }
+            },
+            {
+              "id": "arbitrary-send-eth",
+              "name": "arbitrary-send-eth",
+              "shortDescription": {
+                "text": "arbitrary send eth"
+              }
+            },
+            {
+              "id": "SWC-105",
+              "name": "SWC-105",
+              "shortDescription": {
+                "text": "SWC 105"
+              }
+            },
+            {
+              "id": "missing-zero-check",
+              "name": "missing-zero-check",
+              "shortDescription": {
+                "text": "missing zero check"
+              }
+            },
+            {
+              "id": "solc-version",
+              "name": "solc-version",
+              "shortDescription": {
+                "text": "solc version"
+              }
+            },
+            {
+              "id": "immutable-states",
+              "name": "immutable-states",
+              "shortDescription": {
+                "text": "immutable states"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "Demo heuristic: sweep lacks a caller check."
+          },
+          "properties": {
+            "sentinelStatus": "confirmed",
+            "confidence": "low",
+            "evidence": [
+              "Demo-only lexical pattern; not a Slither or Mythril result"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "arbitrary-send-eth",
+          "level": "error",
+          "message": {
+            "text": "VulnerableTreasury.sweep(address) (src/VulnerableTreasury.sol#11-13) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:arbitrary-send-eth: VulnerableTreasury.sweep(address) (src/VulnerableTreasury.sol#11-13) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SWC-105",
+          "level": "error",
+          "message": {
+            "text": "Unprotected Ether Withdrawal\nAny sender can withdraw Ether from the contract account.\nArbitrary senders other than the contract creator can profitably extract Ether from the contract account. Verify the business logic carefully and make sure that appropriate security controls are in place to prevent unexpected loss of funds."
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "unknown",
+            "evidence": [
+              "mythril:SWC-105: Any sender can withdraw Ether from the contract account.\nArbitrary senders other than the contract creator can profitably extract Ether from the contract account. Verify the business logic carefully and make sure that appropriate security controls are in place to prevent unexpected loss of funds."
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing-zero-check",
+          "level": "note",
+          "message": {
+            "text": "VulnerableTreasury.sweep(address).recipient (src/VulnerableTreasury.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:missing-zero-check: VulnerableTreasury.sweep(address).recipient (src/VulnerableTreasury.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/VulnerableTreasury.sol#12)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "solc-version",
+          "level": "note",
+          "message": {
+            "text": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/VulnerableTreasury.sol#1)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:solc-version: Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/VulnerableTreasury.sol#1)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "immutable-states",
+          "level": "note",
+          "message": {
+            "text": "VulnerableTreasury.owner (src/VulnerableTreasury.sol#5) should be immutable \n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:immutable-states: VulnerableTreasury.owner (src/VulnerableTreasury.sol#5) should be immutable \n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableTreasury.sol"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

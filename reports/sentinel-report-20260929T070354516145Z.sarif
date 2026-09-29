@@ -1,0 +1,241 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Sentinel",
+          "rules": [
+            {
+              "id": "reentrancy-eth",
+              "name": "reentrancy-eth",
+              "shortDescription": {
+                "text": "reentrancy eth"
+              }
+            },
+            {
+              "id": "external-call-order",
+              "name": "external-call-order",
+              "shortDescription": {
+                "text": "external call order"
+              }
+            },
+            {
+              "id": "SWC-114",
+              "name": "SWC-114",
+              "shortDescription": {
+                "text": "SWC 114"
+              }
+            },
+            {
+              "id": "SWC-107",
+              "name": "SWC-107",
+              "shortDescription": {
+                "text": "SWC 107"
+              }
+            },
+            {
+              "id": "solc-version",
+              "name": "solc-version",
+              "shortDescription": {
+                "text": "solc version"
+              }
+            },
+            {
+              "id": "low-level-calls",
+              "name": "low-level-calls",
+              "shortDescription": {
+                "text": "low level calls"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "reentrancy-eth",
+          "level": "error",
+          "message": {
+            "text": "Reentrancy in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\tExternal calls:\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n\tState variables written after the call(s):\n\t- balances[msg.sender] = 0 (src/VulnerableVault.sol#15)\n\tVulnerableVault.balances (src/VulnerableVault.sol#5) can be used in cross function reentrancies:\n\t- VulnerableVault.balances (src/VulnerableVault.sol#5)\n\t- VulnerableVault.deposit() (src/VulnerableVault.sol#7-9)\n\t- VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:reentrancy-eth: Reentrancy in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\tExternal calls:\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n\tState variables written after the call(s):\n\t- balances[msg.sender] = 0 (src/VulnerableVault.sol#15)\n\tVulnerableVault.balances (src/VulnerableVault.sol#5) can be used in cross function reentrancies:\n\t- VulnerableVault.balances (src/VulnerableVault.sol#5)\n\t- VulnerableVault.deposit() (src/VulnerableVault.sol#7-9)\n\t- VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "external-call-order",
+          "level": "error",
+          "message": {
+            "text": "Demo heuristic: external call before balance update; requires validation."
+          },
+          "properties": {
+            "sentinelStatus": "confirmed",
+            "confidence": "low",
+            "evidence": [
+              "Demo-only lexical pattern; not a Slither or Mythril result"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SWC-114",
+          "level": "warning",
+          "message": {
+            "text": "Transaction Order Dependence\nThe value of the call is dependent on balance or storage write\nThis can lead to race conditions. An attacker may be able to run a transaction after our transaction which can change the value of the call"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "unknown",
+            "evidence": [
+              "mythril:SWC-114: The value of the call is dependent on balance or storage write\nThis can lead to race conditions. An attacker may be able to run a transaction after our transaction which can change the value of the call"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SWC-107",
+          "level": "warning",
+          "message": {
+            "text": "State access after external call\nWrite to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state."
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "unknown",
+            "evidence": [
+              "mythril:SWC-107: Write to persistent state following external call\nThe contract account state is accessed after an external call to a user defined address. To prevent reentrancy issues, consider accessing the state only before the call, especially if the callee is untrusted. Alternatively, a reentrancy lock can be used to prevent untrusted callees from re-entering the contract in an intermediate state."
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SWC-107",
+          "level": "note",
+          "message": {
+            "text": "External Call To User-Supplied Address\nA call to a user-supplied address is executed.\nAn external message call to an address specified by the caller is executed. Note that the callee account might contain arbitrary code and could re-enter any function within this contract. Reentering the contract in an intermediate state may lead to unexpected behaviour. Make sure that no state modifications are executed after this call and/or reentrancy guards are in place."
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "unknown",
+            "evidence": [
+              "mythril:SWC-107: A call to a user-supplied address is executed.\nAn external message call to an address specified by the caller is executed. Note that the callee account might contain arbitrary code and could re-enter any function within this contract. Reentering the contract in an intermediate state may lead to unexpected behaviour. Make sure that no state modifications are executed after this call and/or reentrancy guards are in place."
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "solc-version",
+          "level": "note",
+          "message": {
+            "text": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/VulnerableVault.sol#1)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:solc-version: Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/VulnerableVault.sol#1)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "low-level-calls",
+          "level": "note",
+          "message": {
+            "text": "Low level call in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:low-level-calls: Low level call in VulnerableVault.withdraw() (src/VulnerableVault.sol#11-16):\n\t- (sent,None) = msg.sender.call{value: amount}() (src/VulnerableVault.sol#13)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/VulnerableVault.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

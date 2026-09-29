@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+<!--
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,4 +43,3092 @@ async function loadEnvironment(){const response=await fetch('/environment');if(!
 $('examples').addEventListener('click',event=>{const path=event.target.closest('[data-example]')?.dataset.example;if(path){$('path').value=path;$('mock').checked=true;$('scout').checked=false;$('mode-help').textContent='Complete demo mode selected: exploit, repair, and Judge verification will run.'}});$('scout').addEventListener('change',()=>{$('mode-help').textContent=$('scout').checked?'Detection-only mode stops after Scout and intentionally does not generate patches.':'Complete mode runs exploit proof, repair synthesis, and deterministic Judge verification.'});$('scan-list').addEventListener('click',event=>{const ledger=event.target.closest('[data-ledger]')?.dataset.ledger;if(ledger)loadLedger(ledger)});$('scan-form').addEventListener('submit',async event=>{event.preventDefault();const button=$('run');button.disabled=true;livePhases=[];$('phase-label').textContent='Queued';$('phases').innerHTML=gate('Preparing assessment','warn','establishing an isolated workspace');$('notice').textContent='Queued. Establishing an isolated workspace…';try{const response=await fetch('/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_path:$('path').value.trim(),mock:$('mock').checked,scout_only:$('scout').checked,max_retries:Number($('max-retries').value)})});const body=await response.json();if(!response.ok)throw new Error(body.detail||'Could not start assessment');const stream=new EventSource(`/runs/${body.run_id}/events`);stream.addEventListener('update',event=>{const item=JSON.parse(event.data);$('notice').textContent=`${title(item.category)} · ${item.summary}`;renderLivePhase(item);if(item.category==='run'&&['completed','failed'].includes(item.status)){stream.close();button.disabled=false;selected=null;refresh().then(refreshComparison);loadEnvironment()}});stream.addEventListener('error',()=>{stream.close();button.disabled=false;selected=null;refresh().then(refreshComparison);loadEnvironment()})}catch(error){$('notice').textContent=error.message;$('phase-label').textContent='Could not start';$('phases').innerHTML=gate('Assessment request','fail',escape(error.message));button.disabled=false}});loadEnvironment();refresh().then(refreshComparison);setInterval(()=>{refresh().then(refreshComparison)},4000);
 </script>
 </body>
+-->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sentinel | Security Operations</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101416;
+        --panel: #181e21;
+        --line: #343e43;
+        --line-soft: #293237;
+        --text: #edf1f2;
+        --muted: #a4b0b6;
+        --faint: #a4b0b6;
+        --cyan: #9ad9cb;
+        --good: #9ad9b4;
+        --warn: #e7c080;
+        --danger: #f59b96;
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button,
+      a,
+      input,
+      summary {
+        -webkit-tap-highlight-color: transparent;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+      :focus-visible {
+        outline: 2px solid var(--cyan);
+        outline-offset: 4px;
+      }
+      a {
+        color: var(--cyan);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .app {
+        max-width: 1280px;
+        margin: auto;
+        padding: 0 32px 64px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        min-height: 80px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.6px;
+      }
+      .mark {
+        width: 24px;
+        height: 26px;
+        border: 2px solid var(--cyan);
+        border-radius: 5px 5px 11px 11px;
+      }
+      .mark i {
+        display: none;
+      }
+      .target {
+        flex: 1;
+        min-width: 0;
+      }
+      .target strong {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 400;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .sync {
+        margin-left: auto;
+        font-size: 14px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .hero {
+        padding: 32px 0 24px;
+      }
+      .hero-copy {
+        margin-bottom: 24px;
+      }
+      .eyebrow {
+        color: var(--cyan);
+        font-size: 14px;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 6px 0;
+        font-size: 28px;
+        line-height: 1.25;
+        letter-spacing: -0.7px;
+      }
+      p {
+        line-height: 1.6;
+      }
+      .hero-copy p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+      .run-form {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 22px;
+      }
+      .form-title {
+        display: block;
+        margin-bottom: 16px;
+        font-size: 16px;
+      }
+      .field-label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .run-row {
+        display: flex;
+        align-items: end;
+        gap: 12px;
+      }
+      .path-field {
+        flex: 1;
+        min-width: 0;
+      }
+      .path {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: 1px solid #49565d;
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+      }
+      .small-input {
+        width: 90px;
+      }
+      .run {
+        min-height: 44px;
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 22px;
+        background: var(--cyan);
+        color: #142b25;
+        font-weight: 650;
+      }
+      .run:hover:not(:disabled) {
+        background: #b7e8dc;
+      }
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+        margin: 16px 0 8px;
+      }
+      .checks label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--cyan);
+      }
+      .mode-help,
+      .notice {
+        overflow-wrap: anywhere;
+        font-size: 14px;
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+      .notice:empty {
+        display: none;
+      }
+      .notice.active {
+        color: var(--cyan);
+      }
+      .notice.active::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        vertical-align: middle;
+      }
+      .notice.error {
+        color: var(--danger);
+      }
+      .options {
+        margin-top: 14px;
+      }
+      summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      summary:hover {
+        color: var(--text);
+      }
+      .options[open] summary {
+        margin-bottom: 12px;
+      }
+      .readiness {
+        display: flex;
+        align-items: start;
+        flex-wrap: wrap;
+        gap: 16px 32px;
+        margin-bottom: 28px;
+      }
+      .readiness > details {
+        flex: 1;
+        min-width: 220px;
+      }
+      .readiness > div {
+        flex: 2;
+      }
+      .tool-grid,
+      .example-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .tool {
+        font-size: 14px;
+        color: var(--warn);
+        padding: 5px 0;
+        margin-right: 12px;
+      }
+      .tool.ready {
+        color: var(--muted);
+      }
+      .example {
+        padding: 6px 10px;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
+      }
+      .example:hover {
+        border-color: var(--cyan);
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+        border-top: 1px solid var(--line);
+        padding-top: 28px;
+      }
+      .history {
+        position: sticky;
+        top: 20px;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 0;
+      }
+      .head h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .head .label {
+        display: none;
+      }
+      .quiet {
+        font-size: 14px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      .run-list {
+        max-height: 65vh;
+        overflow: auto;
+      }
+      .scan {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        grid-template-columns: 6px minmax(0, 1fr);
+        gap: 0 10px;
+        padding: 14px 12px;
+        margin-bottom: 4px;
+        color: var(--text);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+      }
+      .scan:hover {
+        background: var(--panel);
+      }
+      .scan.active {
+        background: #20332e;
+        border-color: #45675d;
+      }
+      .scan i {
+        width: 6px;
+        height: 6px;
+        margin-top: 7px;
+        background: var(--muted);
+        border-radius: 50%;
+      }
+      .scan.verified i {
+        background: var(--good);
+      }
+      .scan strong {
+        display: block;
+        overflow-wrap: anywhere;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .scan span {
+        display: block;
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 5px;
+      }
+      .scan b {
+        grid-column: 2;
+        font-weight: 400;
+        font-size: 14px;
+        color: var(--cyan);
+        margin-top: 5px;
+      }
+      .surface {
+        min-width: 0;
+      }
+      .evidence {
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .conclusion {
+        padding: 18px 20px;
+        background: var(--panel);
+        border-left: 3px solid var(--warn);
+        border-radius: 0 6px 6px 0;
+        margin-bottom: 20px;
+      }
+      .conclusion.pass {
+        border-color: var(--good);
+      }
+      .conclusion.fail {
+        border-color: var(--danger);
+      }
+      .conclusion h3 {
+        font-size: 19px;
+        margin: 0 0 7px;
+        font-weight: 600;
+      }
+      .conclusion p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .project-path {
+        display: block;
+        margin-top: 12px;
+        font-size: 14px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      .posture {
+        display: flex;
+        gap: 32px;
+        padding: 0 0 20px;
+      }
+      .stat strong {
+        display: block;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .stat small {
+        display: none;
+      }
+      .gate {
+        display: grid;
+        grid-template-columns: 6px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 13px 0;
+        border-top: 1px solid var(--line-soft);
+      }
+      .gate i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .gate.pass i {
+        background: var(--good);
+      }
+      .gate.fail i {
+        background: var(--danger);
+      }
+      .gate.warn i {
+        background: var(--warn);
+      }
+      .gate strong {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .gate small {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+      .gate b {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .finding {
+        padding: 24px 0 24px 18px;
+        margin: 20px 0;
+        border-left: 3px solid var(--line);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .finding.high,
+      .finding.critical {
+        border-left-color: var(--danger);
+      }
+      .finding.medium {
+        border-left-color: var(--warn);
+      }
+      .finding.low {
+        border-left-color: #9dbbe0;
+      }
+      .finding-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+      .severity {
+        padding: 3px 9px;
+        border-radius: 4px;
+        background: #293237;
+        color: #cbd5da;
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .severity.high,
+      .severity.critical {
+        color: #ffb6ae;
+        background: #402724;
+      }
+      .severity.medium {
+        color: #f4cf91;
+        background: #393021;
+      }
+      .severity.low {
+        color: #bdd5f3;
+        background: #243142;
+      }
+      .finding-status {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .finding-status.confirmed {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .finding h3 {
+        font-size: 20px;
+        line-height: 1.45;
+        font-weight: 600;
+        margin: 12px 0 8px;
+        overflow-wrap: anywhere;
+      }
+      .finding-location {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        color: var(--muted);
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+      .finding-location code {
+        color: var(--text);
+        font-size: 14px;
+      }
+      .key-evidence {
+        margin: 18px 0 14px;
+        padding: 12px 16px;
+        background: var(--panel);
+        border-radius: 6px;
+      }
+      .evidence-label {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .key-evidence p {
+        margin: 5px 0 0;
+        font-size: 16px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+      .finding mark {
+        color: #f6d599;
+        background: #373022;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+      .finding summary {
+        font-size: 14px;
+      }
+      .finding .note {
+        font-size: 15px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 12px 0;
+        color: var(--muted);
+      }
+      .evidence-source {
+        margin-top: 14px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .disclosure {
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .disclosure > summary {
+        padding: 18px 0;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .disclosure > summary .quiet {
+        float: right;
+        font-weight: 400;
+        margin-left: 12px;
+        max-width: 50%;
+      }
+      .disclosure .head {
+        padding-top: 0;
+      }
+      .pre {
+        max-height: 420px;
+        overflow: auto;
+        padding: 16px;
+        border-radius: 6px;
+        background: #0c1012;
+        color: #c7d1d6;
+        font:
+          12px/1.65 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .facts {
+        display: flex;
+        gap: 24px;
+        margin: 0 0 12px;
+      }
+      .fact span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .fact strong {
+        margin-left: 8px;
+        font-size: 14px;
+      }
+      .artifact {
+        display: block;
+        padding: 10px 0;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+      .artifact a {
+        text-decoration: none;
+      }
+      .artifact a:hover {
+        text-decoration: underline;
+      }
+      .empty {
+        color: var(--muted);
+        padding: 16px 0;
+        font-size: 14px;
+      }
+      .section-caption {
+        margin: 24px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      @media (max-width: 960px) {
+        .app {
+          padding: 0 24px 40px;
+        }
+        .workspace {
+          grid-template-columns: 220px minmax(0, 1fr);
+          gap: 24px;
+        }
+        .target {
+          display: none;
+        }
+        .facts {
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+      }
+      @media (max-width: 700px) {
+        .readiness {
+          display: block;
+        }
+        .readiness > details {
+          margin-top: 16px;
+        }
+        .app {
+          padding: 0 16px 32px;
+        }
+        .top {
+          min-height: 64px;
+        }
+        .hero {
+          padding-top: 24px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+        .run-form {
+          padding: 16px;
+        }
+        .run-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+          gap: 12px;
+          padding-top: 12px;
+        }
+        .history {
+          position: static;
+        }
+        .run-list {
+          max-height: 180px;
+        }
+        .scan {
+          padding: 12px;
+        }
+        .posture {
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .head {
+          gap: 12px;
+        }
+        .head .quiet {
+          text-align: right;
+          max-width: 45%;
+        }
+        .checks {
+          flex-direction: column;
+        }
+        .disclosure > summary .quiet {
+          float: none;
+          display: block;
+          max-width: 100%;
+          margin: 4px 0 0 18px;
+        }
+      }
+
+      .stage-section {
+        padding: 8px 0 24px;
+      }
+      .stage-track {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .stage {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 0;
+        border-top: 2px solid var(--line);
+      }
+      .stage.pass {
+        border-color: #598d7a;
+      }
+      .stage.active {
+        border-color: var(--cyan);
+      }
+      .stage.fail {
+        border-color: var(--warn);
+      }
+      .stage-icon {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .stage.pass .stage-icon {
+        color: var(--good);
+      }
+      .stage.active .stage-icon {
+        color: var(--cyan);
+      }
+      .stage strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .stage small {
+        display: block;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .repair-section {
+        padding: 16px 0 28px;
+      }
+      .repair-file h3 {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+      .repair-file + .repair-file {
+        margin-top: 28px;
+      }
+      .code-comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .code-pane {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #11191d;
+        overflow: hidden;
+      }
+      .code-pane header {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .code-pane header strong {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .code-pane header > span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .change-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 8px;
+        border-radius: 50%;
+      }
+      .removed {
+        background: var(--danger);
+      }
+      .added {
+        background: var(--good);
+      }
+      .code-caption {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0;
+        padding: 12px 14px;
+        min-height: 86px;
+        overflow-wrap: anywhere;
+      }
+      .source-code {
+        margin: 0;
+        padding: 12px 0;
+        max-height: 520px;
+        overflow: auto;
+        background: #0c1216;
+        font:
+          12px/1.9 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .code-line {
+        display: flex;
+        min-width: max-content;
+        padding-right: 16px;
+      }
+      .line-number {
+        width: 34px;
+        flex-shrink: 0;
+        text-align: right;
+        padding-right: 6px;
+        color: #788a94;
+        user-select: none;
+      }
+      .line-marker {
+        width: 18px;
+        flex-shrink: 0;
+        user-select: none;
+      }
+      .code-line.before {
+        background: #412328;
+      }
+      .code-line.after {
+        background: #163b31;
+      }
+      .syntax-keyword {
+        color: #b7abed;
+      }
+      .syntax-string {
+        color: #e6c087;
+      }
+      .syntax-number {
+        color: #8fc9e8;
+      }
+      .syntax-comment {
+        color: #889da5;
+      }
+      .evidence-body {
+        margin-top: 16px;
+        padding: 16px 18px;
+        border-radius: 6px;
+        background: #11191d;
+        border-left: 2px solid #41525b;
+      }
+      .evidence-body h4 {
+        margin: 18px 0 8px;
+        font-size: 14px;
+        color: #cbd6dc;
+        font-weight: 600;
+      }
+      .evidence-body h4:first-child {
+        margin-top: 0;
+      }
+      .evidence-body p {
+        margin: 0 0 12px;
+        font-size: 15px;
+        line-height: 1.75;
+        overflow-wrap: anywhere;
+      }
+      .evidence-item {
+        display: flex;
+        gap: 10px;
+        padding: 8px 0;
+        color: #8d9fa8;
+      }
+      .evidence-item code {
+        color: #d4e0e5;
+        font:
+          13px/1.7 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      .technical {
+        border-top: 1px solid var(--line);
+      }
+      .technical > summary {
+        color: var(--muted);
+      }
+      .technical .disclosure {
+        margin-left: 16px;
+      }
+      @media (max-width: 700px) {
+        .code-comparison {
+          grid-template-columns: 1fr;
+        }
+        .code-caption {
+          min-height: 0;
+        }
+      }
+      @media (max-width: 520px) {
+        .stage-track {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .app {
+        max-width: 1100px;
+      }
+      .workspace {
+        display: block;
+        border-top: 0;
+        padding-top: 8px;
+      }
+      .results {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .history {
+        position: static;
+        max-width: 900px;
+        margin: 28px auto 0;
+        border-top: 1px solid var(--line);
+      }
+      .history .run-list {
+        max-height: 220px;
+      }
+      .scan {
+        display: grid;
+        grid-template-columns: 6px 1fr auto;
+      }
+      .scan b {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: center;
+      }
+      .scan-setup {
+        margin: 20px 0;
+      }
+      .scan-setup > summary {
+        color: var(--cyan);
+        font-weight: 600;
+      }
+      .scan-setup .hero {
+        padding-top: 16px;
+      }
+      .hero-copy {
+        display: none;
+      }
+      .assessment-mode {
+        display: flex;
+        gap: 12px 32px;
+        padding: 0;
+        margin: 20px 0 12px;
+        border: 0;
+      }
+      .assessment-mode legend {
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .assessment-mode label {
+        display: flex;
+        gap: 9px;
+        align-items: start;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .assessment-mode input {
+        accent-color: var(--cyan);
+        margin-top: 4px;
+      }
+      .assessment-mode small {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 3px;
+      }
+      .conclusion {
+        padding: 0;
+        border: 0;
+        background: none;
+        margin: 8px 0 16px;
+      }
+      .conclusion h3 {
+        font-size: 25px;
+      }
+      .conclusion p {
+        color: var(--good);
+      }
+      .stage-section {
+        padding: 0 0 16px;
+      }
+      .stage-section > .quiet {
+        display: none;
+      }
+      .stage {
+        border: 0;
+        padding: 8px 0;
+      }
+      .stage small {
+        display: none;
+      }
+      .stage-track {
+        gap: 16px;
+        margin-top: 0;
+      }
+      .stage:not(:last-child)::after {
+        content: "→";
+        color: var(--muted);
+        margin-left: auto;
+      }
+      .root-finding {
+        padding: 4px 0 26px;
+      }
+      .root-finding h3 {
+        overflow-wrap: anywhere;
+        font-size: 24px;
+        line-height: 1.4;
+        letter-spacing: -0.4px;
+        margin: 12px 0 6px;
+      }
+      .confirmed-label {
+        color: var(--danger);
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .root-location,
+      .root-provenance {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .root-explanation {
+        max-width: 760px;
+        font-size: 16px;
+        margin: 16px 0 12px;
+      }
+      .root-provenance {
+        margin-bottom: 16px;
+      }
+      .finding-actions > details,
+      .supporting {
+        margin-top: 12px;
+      }
+      .finding-actions summary {
+        color: var(--cyan);
+      }
+      .evidence-facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px 32px;
+        font-size: 14px;
+        margin: 18px 0;
+      }
+      .evidence-facts dt {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .evidence-facts dd {
+        margin: 4px 0 0;
+      }
+      .detail-evidence {
+        margin-top: 12px;
+      }
+      .detail-evidence summary {
+        font-size: 14px;
+      }
+      .verification-section {
+        padding: 8px 0 20px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .verification-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 9px 0;
+        font-size: 15px;
+        max-width: 620px;
+      }
+      .verification-row strong {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .verification-row .pass {
+        color: var(--good);
+      }
+      .verification-row .fail {
+        color: var(--danger);
+      }
+      .verification-row .pending {
+        color: var(--muted);
+      }
+      .trace {
+        margin-top: 14px;
+      }
+      .trace h4 {
+        font-size: 14px;
+      }
+      .repair-section {
+        padding: 8px 0 24px;
+      }
+      .repair-summary strong {
+        font-size: 14px;
+      }
+      .repair-summary p {
+        font-size: 15px;
+        margin: 8px 0;
+      }
+      .repair-summary p span {
+        display: inline-block;
+        color: var(--muted);
+        min-width: 70px;
+      }
+      .repair-diff {
+        margin-top: 14px;
+      }
+      .diff-row {
+        display: block;
+      }
+      .added-line {
+        color: #9fddbd;
+        background: #18372d;
+      }
+      .removed-line {
+        color: #efb3ae;
+        background: #3b2427;
+      }
+      .observations > summary .quiet {
+        float: none;
+        margin-left: 12px;
+      }
+      .observation {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .observation > div:first-child {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .observation h3 {
+        overflow-wrap: anywhere;
+        font-size: 16px;
+        font-weight: 500;
+        margin: 8px 0 4px;
+      }
+      .observation p {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 6px 0;
+      }
+      .observation .severity {
+        font-size: 14px;
+        padding: 2px 6px;
+      }
+      .metadata > div {
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        gap: 16px;
+        padding: 8px 0;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+      .metadata strong {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      @media (max-width: 600px) {
+        .assessment-mode {
+          flex-direction: column;
+        }
+        .root-finding h3 {
+          overflow-wrap: anywhere;
+          font-size: 21px;
+        }
+        .stage-track {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .stage {
+          gap: 5px;
+        }
+        .stage strong {
+          font-size: 14px;
+        }
+        .stage:not(:last-child)::after {
+          display: none;
+        }
+      }
+
+      .hero-copy {
+        display: block;
+        margin-bottom: 16px;
+      }
+      .hero-copy h1 {
+        font-size: 22px;
+      }
+      .scan-setup {
+        max-width: 900px;
+        margin: 20px auto 0;
+      }
+      .scan-setup .hero {
+        padding: 0 0 16px;
+      }
+      .run-form {
+        padding: 0;
+        background: none;
+        border: 0;
+      }
+      .assessment-mode {
+        margin-top: 16px;
+      }
+      .readiness {
+        margin-bottom: 24px;
+      }
+      .readiness .label {
+        display: none;
+      }
+      .downloads {
+        border-top: 1px solid var(--line-soft);
+        padding-bottom: 16px;
+      }
+      .downloads > .quiet {
+        margin: 0 0 12px;
+        font-size: 14px;
+      }
+      .artifacts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .download-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .download-link:hover {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
+      .extra-downloads {
+        width: 100%;
+        margin-top: 6px;
+      }
+      .extra-downloads .download-link {
+        margin-top: 8px;
+      }
+      .diff-legend {
+        display: flex;
+        gap: 18px;
+        font-size: 14px;
+        margin: 12px 0 8px;
+      }
+      .removed-label {
+        color: var(--danger);
+      }
+      .added-label {
+        color: var(--good);
+      }
+      .diff-code {
+        margin: 0;
+        max-height: 480px;
+      }
+      .diff-row {
+        display: inline;
+      }
+      .stage-track.is-running .stage.active .stage-icon {
+        display: inline-block;
+        border: 2px solid #355047;
+        border-top-color: var(--cyan);
+        border-radius: 50%;
+        width: 14px;
+        height: 14px;
+        font-size: 0;
+        animation: stage-spin 1s linear infinite;
+      }
+      .stage.active strong {
+        color: var(--cyan);
+      }
+      .stage-track.is-running {
+        position: relative;
+      }
+      .stage-track.is-running::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -5px;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--cyan),
+          transparent
+        );
+        background-size: 50% 100%;
+        background-repeat: no-repeat;
+        animation: stage-flow 2.5s ease-in-out infinite;
+      }
+      .notice.active::before {
+        animation: status-pulse 1.8s ease-in-out infinite;
+      }
+      @keyframes stage-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes stage-flow {
+        from {
+          background-position: -100% 0;
+        }
+        to {
+          background-position: 200% 0;
+        }
+      }
+      @keyframes status-pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stage-track.is-running .stage.active .stage-icon,
+        .notice.active::before,
+        .stage-track.is-running::after {
+          animation: none;
+        }
+        .stage-track.is-running::after {
+          background: var(--line);
+        }
+      }
+      @media (max-width: 600px) {
+        .download-link {
+          width: 100%;
+        }
+      }
+      .results.is-running .finding-section,
+      .results.is-running .verification-section,
+      .results.is-running .repair-section,
+      .results.is-running .observations,
+      .results.is-running .downloads {
+        display: none;
+      }
+
+      .stage-section #notice {
+        margin: 18px 0 0;
+        font-size: 16px;
+        min-height: 24px;
+        color: var(--cyan);
+      }
+      #findings,
+      #observations {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+        gap: 20px;
+      }
+      .root-finding {
+        border: 1px solid var(--line-soft);
+        border-top: 3px solid var(--danger);
+        border-radius: 12px;
+        padding: 24px;
+        min-width: 0;
+      }
+      .inline-evidence {
+        background: rgba(100, 160, 170, 0.045);
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        padding: 18px;
+        margin-top: 20px;
+      }
+      .inline-evidence h4 {
+        font-size: 15px;
+        margin: 0 0 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--cyan);
+      }
+      .evidence-code {
+        margin: 0;
+        overflow: auto;
+        max-height: 290px;
+        font-size: 15px;
+        line-height: 1.8;
+      }
+      .evidence-facts {
+        font-size: 15px;
+        margin-bottom: 0;
+      }
+      .evidence-facts dt {
+        font-size: 14px;
+      }
+      .evidence-highlight {
+        background: rgba(230, 175, 80, 0.1);
+        color: #f0cc8a;
+      }
+      .code-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .code-panel {
+        min-width: 0;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.12);
+      }
+      .code-panel header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .code-panel header span {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .before header strong {
+        color: #efb3ae;
+      }
+      .after header strong {
+        color: #9fddbd;
+      }
+      .code-panel p {
+        margin: 0;
+        padding: 14px 20px;
+        font-size: 15px;
+        min-height: 68px;
+        color: var(--muted);
+      }
+      .code-panel pre {
+        margin: 0;
+        padding: 12px 0;
+        overflow: auto;
+        max-height: 440px;
+        font-size: 14px;
+        line-height: 1.9;
+      }
+      .code-line {
+        display: flex;
+        min-width: max-content;
+      }
+      .code-line code {
+        font: inherit;
+        padding-right: 18px;
+      }
+      .line-number {
+        color: var(--muted);
+        opacity: 0.65;
+        user-select: none;
+        width: 44px;
+        flex-shrink: 0;
+        text-align: right;
+        padding-right: 14px;
+      }
+      .observations {
+        padding: 12px 0 28px;
+      }
+      .observation {
+        padding: 20px;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.018);
+      }
+      .observation h3 {
+        font-size: 19px;
+        line-height: 1.5;
+      }
+      .observation p {
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .observation .severity {
+        font-size: 14px;
+        padding: 4px 8px;
+      }
+      #verification {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .verification-row {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: linear-gradient(
+          140deg,
+          rgba(110, 170, 150, 0.07),
+          transparent
+        );
+        animation: verification-reveal 0.45s ease both;
+      }
+      .verification-row:nth-child(2) {
+        animation-delay: 0.08s;
+      }
+      .verification-row:nth-child(3) {
+        animation-delay: 0.16s;
+      }
+      .verification-row:nth-child(4) {
+        animation-delay: 0.24s;
+      }
+      .verification-row strong {
+        font-size: 18px;
+      }
+      .verification-row:has(.pass) {
+        border-bottom: 2px solid var(--good);
+      }
+      @keyframes verification-reveal {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (max-width: 760px) {
+        .code-comparison {
+          grid-template-columns: 1fr;
+        }
+        #verification {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .verification-row {
+          animation: none;
+        }
+      }
+      .root-finding:has(.severity.medium) {
+        border-top-color: var(--warn);
+      }
+      .root-finding:has(.severity.low) {
+        border-top-color: var(--cyan);
+      }
+      #findings > .observation:has(.critical) {
+        border-top: 3px solid var(--danger);
+      }
+      .stage-track.is-running .stage.active {
+        background: linear-gradient(
+          110deg,
+          rgba(154, 217, 203, 0.12),
+          transparent
+        );
+        border-radius: 8px;
+      }
+      .copy-code {
+        display: grid;
+        padding: 5px 9px;
+        margin: -5px -9px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: var(--muted);
+        background: transparent;
+        font: inherit;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      .copy-code > span {
+        grid-area: 1/1;
+        transition: opacity 0.15s;
+      }
+      .copy-code .copy-action {
+        opacity: 0;
+        color: var(--cyan);
+      }
+      .copy-code:hover,
+      .copy-code:focus-visible,
+      .copy-code[data-copy-state] {
+        background: rgba(154, 217, 203, 0.08);
+        border-color: var(--line);
+      }
+      .copy-code:hover .copy-label,
+      .copy-code:focus-visible .copy-label,
+      .copy-code[data-copy-state] .copy-label {
+        opacity: 0;
+      }
+      .copy-code:hover .copy-action,
+      .copy-code:focus-visible .copy-action,
+      .copy-code[data-copy-state] .copy-action {
+        opacity: 1;
+      }
+      .copy-status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      @media (hover: none) {
+        .copy-code .copy-label {
+          opacity: 0;
+        }
+        .copy-code .copy-action {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .copy-code,
+        .copy-code > span {
+          transition: none;
+        }
+      }
+      .retry-option {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 18px;
+      }
+      .retry-option .field-label {
+        margin: 0;
+        font-size: 15px;
+      }
+      .retry-option .small-input {
+        width: 84px;
+        margin: 0;
+        min-height: 42px;
+        font-size: 16px;
+      }
+      .head h2 {
+        font-size: 19px;
+      }
+      .root-location,
+      .root-provenance,
+      .quiet,
+      .mode-choice small {
+        line-height: 1.6;
+      }
+      .code-panel pre {
+        font-size: 14px;
+      }
+      .observation {
+        align-self: start;
+      }
+      .observation > summary {
+        display: block;
+        cursor: pointer;
+        list-style: none;
+      }
+      .observation > summary::-webkit-details-marker {
+        display: none;
+      }
+      .observation-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .observation-title {
+        display: block;
+        font-size: 19px;
+        line-height: 1.5;
+        font-weight: 500;
+        margin: 12px 0 16px;
+        overflow-wrap: anywhere;
+      }
+      .observation-toggle {
+        display: flex;
+        justify-content: space-between;
+        color: var(--cyan);
+        font-size: 14px;
+      }
+      .observation-toggle > span {
+        transition: transform 0.2s;
+      }
+      .observation[open] .observation-toggle > span {
+        transform: rotate(45deg);
+      }
+      .observation-details {
+        margin-top: 18px;
+        padding-top: 4px;
+        border-top: 1px solid var(--line-soft);
+        overflow-wrap: anywhere;
+      }
+      .observation-description {
+        white-space: pre-wrap;
+        font-size: 14px;
+        line-height: 1.7;
+        margin-top: 20px;
+      }
+      .observation-details ul {
+        padding-left: 20px;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .observation .observation-review {
+        font-size: 15px;
+        color: var(--text);
+        line-height: 1.6;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .observation-toggle > span {
+          transition: none;
+        }
+      }
+      .observation-details mark {
+        background: rgba(231, 192, 128, 0.12);
+        color: var(--warn);
+        padding: 1px 3px;
+        border-radius: 3px;
+      }
+      .observation {
+        padding: 0;
+        overflow: hidden;
+      }
+      .observation > summary {
+        position: relative;
+        padding: 20px 46px 20px 20px;
+        min-height: 148px;
+      }
+      .observation-meta {
+        min-height: 28px;
+      }
+      .observation-title {
+        margin: 12px 0 0;
+        font-size: 18px;
+      }
+      .observation-toggle {
+        position: absolute;
+        right: 20px;
+        top: 23px;
+        font-size: 22px;
+        line-height: 1;
+        transition: transform 0.2s;
+      }
+      .observation[open] .observation-toggle {
+        transform: rotate(180deg);
+      }
+      .observation-details {
+        margin: 0 20px;
+        padding: 0 0 18px;
+      }
+      .observation-details .evidence-facts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 18px 0;
+      }
+      .scanner-evidence {
+        margin: 14px 0;
+        padding: 12px 14px;
+        border-left: 2px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        border-radius: 0 6px 6px 0;
+      }
+      .scanner-evidence h4 {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 8px;
+        font-weight: 500;
+      }
+      .scanner-evidence p {
+        font-size: 14px;
+        margin: 6px 0;
+        line-height: 1.65;
+        color: var(--text);
+      }
+      .observation .observation-review {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .observation-toggle {
+          transition: none;
+        }
+      }
+      .activity-context {
+        display: none;
+        max-width: 760px;
+        margin: 8px 0 20px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .results.is-running .activity-context:not(:empty) {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="top">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>sentinel.
+        </div>
+        <span id="sync-status" class="sync" role="status">Connecting…</span>
+      </header>
+      <section id="scan-setup" class="scan-setup">
+        <section class="hero">
+          <div class="hero-copy"><h1>Scan a project</h1></div>
+          <form id="scan-form" class="run-form">
+            <div class="run-row">
+              <div class="path-field">
+                <label class="field-label" for="path"
+                  >Foundry project path</label
+                ><input
+                  class="path"
+                  id="path"
+                  required
+                  placeholder="/absolute/path/to/foundry-project"
+                  spellcheck="false"
+                  autocomplete="off"
+                />
+              </div>
+              <button class="run" id="run" type="submit">Start scan</button>
+            </div>
+            <fieldset class="assessment-mode">
+              <legend>Assessment mode</legend>
+              <label
+                ><input
+                  type="radio"
+                  name="assessment-mode"
+                  id="full-mode"
+                  checked
+                /><span
+                  >Full assessment<small
+                    >Detect → Prove → Repair → Verify</small
+                  ></span
+                ></label
+              >
+              <label
+                ><input type="radio" name="assessment-mode" id="scout" /><span
+                  >Detection only<small
+                    >Find candidates without proof or repair</small
+                  ></span
+                ></label
+              >
+            </fieldset>
+            <div class="retry-option">
+              <label class="field-label" for="max-retries">Max tries</label>
+              <input
+                class="path small-input"
+                id="max-retries"
+                type="number"
+                min="0"
+                max="5"
+                value="5"
+              />
+            </div>
+            <div hidden>
+              <input id="mock" type="checkbox" checked />
+              <p id="mode-help"></p>
+              <div id="tools"></div>
+            </div>
+            <p id="readiness-label" class="notice"></p>
+          </form>
+        </section>
+        <section class="readiness" aria-label="Assessment setup">
+          <div>
+            <span class="label">Examples</span>
+            <div id="examples" class="example-grid"></div>
+          </div>
+        </section>
+      </section>
+      <div class="workspace">
+        <div class="results" id="results" aria-busy="false">
+          <p id="selection-status" class="notice" role="status"></p>
+          <section class="surface evidence">
+            <div class="head">
+              <div>
+                <span class="label">ASSESSMENT CONCLUSION</span>
+                <h2>Security assessment</h2>
+              </div>
+              <span id="conclusion-state" class="quiet">No scan selected</span>
+            </div>
+            <div id="conclusion" class="conclusion warn">
+              <h3>No scan selected</h3>
+              <p>Start a scan or choose one from history.</p>
+            </div>
+          </section>
+          <section class="stage-section" aria-label="Assessment stages">
+            <span id="phase-label" class="quiet">Awaiting scan</span>
+            <div id="phases" class="stage-track"></div>
+            <p id="notice" class="notice" role="status" aria-live="polite"></p>
+            <p
+              id="activity-context"
+              class="activity-context"
+              aria-live="polite"
+            ></p>
+          </section>
+          <section class="surface evidence finding-section">
+            <div class="head">
+              <div>
+                <h2>Key findings</h2>
+              </div>
+            </div>
+            <div id="findings">
+              <p class="empty">
+                Select a saved assessment to inspect findings.
+              </p>
+            </div>
+          </section>
+          <section class="observations">
+            <div class="head">
+              <h2>Other observations</h2>
+              <span id="observation-count" class="quiet"></span>
+            </div>
+            <div id="observations"></div>
+          </section>
+          <section class="verification-section">
+            <div class="head"><h2>Verification</h2></div>
+            <div id="verification">
+              <p class="empty">Select a scan to inspect execution results.</p>
+            </div>
+          </section>
+          <section class="repair-section" aria-labelledby="repair-heading">
+            <div class="head">
+              <h2 id="repair-heading">Repair</h2>
+              <span id="repair-status" class="quiet">No scan selected</span>
+            </div>
+            <p
+              id="copy-status"
+              class="copy-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div id="repair">
+              <p class="empty">Select a scan to review code changes.</p>
+            </div>
+          </section>
+          <section class="downloads" aria-labelledby="downloads-heading">
+            <div class="head"><h2 id="downloads-heading">Downloads</h2></div>
+            <p class="quiet">
+              Complete findings, scanner output, execution traces, and source
+              snapshots are kept in the evidence report.
+            </p>
+            <div id="artifacts" class="artifacts">
+              <p class="empty">Select a scan to download its reports.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+      <section class="history">
+        <div class="head">
+          <h2>History</h2>
+          <span id="scan-count" class="quiet">—</span>
+        </div>
+        <div id="scan-list" class="run-list">
+          <p class="empty">Loading saved assessments…</p>
+        </div>
+      </section>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let selected = null,
+        scans = [],
+        livePhases = [];
+      const escape = (v) =>
+        String(v ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const title = (v) => String(v || "--").replaceAll("_", " ");
+      const bool = (v) => (v === true ? "pass" : v === false ? "fail" : "warn");
+      function gate(name, state, detail) {
+        return `<div class="gate ${state}"><i></i><div><strong>${escape(name)}</strong><small>${escape(displayText(detail))}</small></div><b>${state === "pass" ? "PASS" : state === "fail" ? "FAIL" : "PENDING"}</b></div>`;
+      }
+      function renderScanList() {
+        $("scan-count").textContent = scans.length;
+        $("scan-list").innerHTML = scans.length
+          ? scans
+              .map(
+                (scan) =>
+                  `<button class="scan ${escape(scan.final_state)} ${selected === scan.ledger_name ? "active" : ""}" ${running ? "disabled" : ""} aria-pressed="${selected === scan.ledger_name}" data-ledger="${escape(scan.ledger_name || "")}"><i></i><div><strong>${escape(reportLabel(scan.ledger_name))}</strong><span>${scan.confirmed} confirmed${scan.final_state === "verified" ? " · 1 repaired" : ""}</span></div><b>${scan.final_state === "verified" ? "✓ Verified" : escape(title(scan.final_state))}</b></button>`,
+              )
+              .join("")
+          : '<p class="empty">No saved scans yet.</p>';
+      }
+      function conclusionFor(state, coverage, confirmed) {
+        const outcome = state.final_verification_state;
+        if (outcome === "verified")
+          return {
+            tone: coverage ? "pass" : "warn",
+            heading: `${confirmed} confirmed bug${confirmed === 1 ? "" : "s"} repaired and verified`,
+            body: `Exploit reproduced; patch and regression tests passed.${coverage ? "" : " Scanner coverage was incomplete; only the selected finding was verified."}`,
+          };
+        if (
+          [
+            "analysis_incomplete",
+            "execution_unavailable",
+            "scout_incomplete",
+          ].includes(outcome)
+        )
+          return {
+            tone: "warn",
+            heading: "Assessment incomplete",
+            body:
+              state.feedback?.at(-1) ||
+              "One or more required tools did not complete. See the downloaded report for details.",
+          };
+        if (outcome === "human_review_required")
+          return {
+            tone: "warn",
+            heading: "Human review required",
+            body:
+              state.feedback?.at(-1) ||
+              `${state.findings.length} candidate signals were recorded, but automated proof or safe repair could not be completed.`,
+          };
+        if (outcome === "no_candidates")
+          return {
+            tone: coverage ? "pass" : "warn",
+            heading: "No candidates recorded",
+            body: coverage
+              ? "Scanners found no candidates. This does not guarantee vulnerability-free code."
+              : "Scanner coverage was incomplete, so the absence of findings is not meaningful.",
+          };
+        if (outcome === "scout_complete")
+          return {
+            tone: state.findings.length ? "warn" : "pass",
+            heading: `Scout recorded ${state.findings.length} candidate${state.findings.length === 1 ? "" : "s"}`,
+            body: "Detection only · exploitability and repairs not verified.",
+          };
+        return {
+          tone: "warn",
+          heading: title(outcome),
+          body: "See the downloaded report for details.",
+        };
+      }
+      function stageTrack(items) {
+        const symbols = {
+          pass: "✓",
+          fail: "!",
+          active: "●",
+          warn: "—",
+          skip: "—",
+        };
+        const labels = {
+          pass: "Complete",
+          fail: "Incomplete",
+          active: "Running",
+          warn: "Not reached",
+          skip: "Skipped",
+        };
+        return items
+          .map(
+            ([name, status]) =>
+              `<div class="stage ${status}" role="group" aria-label="${escape(name)}: ${labels[status]}"><span class="stage-icon" aria-hidden="true">${symbols[status]}</span><div><strong>${escape(name)}</strong><small>${labels[status]}</small></div></div>`,
+          )
+          .join("");
+      }
+      function renderPhases(state, coverage) {
+        $("phase-label").textContent = state.scout_only
+          ? "Detection only"
+          : "Assessment stages";
+        const skipped = state.scout_only ? "skip" : "warn";
+        $("phases").innerHTML = stageTrack([
+          [
+            "Detect",
+            coverage ? "pass" : state.analyzer_runs?.length ? "fail" : "warn",
+          ],
+          [
+            "Prove",
+            state.exploit_confirmed
+              ? "pass"
+              : state.exploit_result
+                ? "fail"
+                : skipped,
+          ],
+          ["Repair", state.patch_diff ? "pass" : skipped],
+          [
+            "Verify",
+            state.judge_result?.verified
+              ? "pass"
+              : state.judge_result
+                ? "fail"
+                : skipped,
+          ],
+        ]);
+      }
+      function repairNotes(original, patched, before, after) {
+        const assignment = /balances\[msg\.sender\]\s*=\s*0/;
+        const oldIndex = String(original || "").search(assignment);
+        const newIndex = String(patched || "").search(assignment);
+        const oldCall = String(original || "").indexOf("msg.sender.call");
+        const newCall = String(patched || "").indexOf("msg.sender.call");
+        if (
+          oldCall >= 0 &&
+          oldIndex > oldCall &&
+          newIndex >= 0 &&
+          newCall > newIndex
+        )
+          return [
+            "Balance resets after the external call, allowing re-entry before the update.",
+            "Balance resets before the external call, so re-entry sees the updated balance.",
+          ];
+        return [
+          before
+            .replace(/^Demo heuristic:\s*/i, "")
+            .replace(/; requires validation\.?$/i, ""),
+          after,
+        ];
+      }
+      let repairCopySources = [];
+      function repairCopyButton(source, label, side) {
+        if (source == null) return `<span>${escape(label)}</span>`;
+        const index = repairCopySources.push(String(source)) - 1;
+        return `<button type="button" class="copy-code" data-copy-source="${index}" aria-label="Copy ${side} code"><span class="copy-label">${escape(label)}</span><span class="copy-action" aria-hidden="true">Copy code</span></button>`;
+      }
+      $("repair").addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-copy-source]");
+        if (!button) return;
+        const source = repairCopySources[Number(button.dataset.copySource)];
+        if (source == null) return;
+        try {
+          await navigator.clipboard.writeText(source);
+          button.dataset.copyState = "done";
+          button.querySelector(".copy-action").textContent = "Copied ✓";
+          $("copy-status").textContent = "Code copied to clipboard.";
+        } catch {
+          button.dataset.copyState = "error";
+          button.querySelector(".copy-action").textContent = "Try again";
+          $("copy-status").textContent =
+            "Could not copy. Select the code and copy manually.";
+        }
+        setTimeout(() => {
+          delete button.dataset.copyState;
+          button.querySelector(".copy-action").textContent = "Copy code";
+        }, 2000);
+      });
+      function renderRepair(state) {
+        repairCopySources = [];
+        const files = Object.keys(state.patched_source || {});
+        const verified = Boolean(state.judge_result?.verified);
+        $("repair-status").textContent = verified
+          ? "Verified"
+          : files.length || state.patch_diff
+            ? "Not verified"
+            : "No patch";
+        if (!files.length && !state.patch_diff) {
+          $("repair").innerHTML =
+            `<p class="empty">${state.scout_only ? "Detection only. No repair was attempted." : "No repair was generated."}</p>`;
+          return;
+        }
+        const rationale = state.patch_artifact?.rationale;
+        const panels = files
+          .map((file) => {
+            const before = state.original_source?.[file];
+            const after = state.patched_source[file];
+            const notes = repairNotes(before, after, "", "");
+            return `<div class="repair-file"><h3>${escape(fileName(file))}</h3><div class="code-comparison" aria-label="Patch diff"><section class="code-panel before"><header><strong>Before</strong>${repairCopyButton(before, "Original", "original")}</header>${notes[0] ? `<p>${escape(displayText(notes[0]))}</p>` : ""}<pre tabindex="0" aria-label="Original code">${before == null ? "Original source unavailable." : sourceLines(before, "removed-line", 1, after)}</pre></section><section class="code-panel after"><header><strong>After</strong>${repairCopyButton(after, verified ? "Verified repair" : "Proposed · not verified", "repaired")}</header>${notes[1] ? `<p>${escape(displayText(notes[1]))}</p>` : ""}<pre tabindex="0" aria-label="Repaired code">${sourceLines(after, "added-line", 1, before)}</pre></section></div></div>`;
+          })
+          .join("");
+        $("repair").innerHTML =
+          `${rationale ? `<p class="repair-rationale">${escape(displayText(rationale))}</p>` : ""}${panels || `<pre class="pre" aria-label="Patch diff">${escape(displayText(state.patch_diff))}</pre>`}`;
+      }
+      function sourceLines(
+        source,
+        changedClass = "",
+        start = 1,
+        comparison = null,
+      ) {
+        // Match in source order so moved statements receive a change highlight.
+        const otherLines =
+          comparison == null ? [] : String(comparison).split("\n");
+        let cursor = 0;
+        return String(source || "")
+          .split("\n")
+          .map((line, index) => {
+            const match = otherLines.indexOf(line, cursor);
+            const changed = comparison != null && match < 0;
+            if (match >= 0) cursor = match + 1;
+            const highlight =
+              /msg\.sender\.call|balances\[msg\.sender\]\s*=|require\(.*tx\.origin/.test(
+                line,
+              );
+            return `<span class="code-line ${changed ? changedClass : highlight ? "evidence-highlight" : ""}"><span class="line-number" aria-hidden="true">${start + index}</span><code>${escape(displayText(line)) || " "}</code></span>`;
+          })
+          .join("");
+      }
+
+      let displayRoots = [];
+      function fileName(value) {
+        return String(value || "")
+          .replaceAll("\\", "/")
+          .replace(/\/$/, "")
+          .split("/")
+          .pop();
+      }
+      function displayText(value) {
+        let text = String(value || "");
+        for (const root of displayRoots) {
+          text = text.split(root.replace(/[/\\]$/, "") + "/").join("");
+          text = text.split(root).join(fileName(root));
+        }
+        // Temporary workspaces and machine-specific directories add no review context.
+        text = text.replace(
+          /\/(?:private\/)?(?:var|tmp)\/[^\n"<>]*?sentinel-workspace-[^/]+\/project\//g,
+          "",
+        );
+        text = text.replace(
+          /(?:[A-Za-z]:\\|\/(?:Users|home|private|var|tmp|opt|usr|etc|Volumes)\/)[^\s"'<>]+/g,
+          (path) => fileName(path),
+        );
+        return text;
+      }
+      const severityOrder = [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "informational",
+      ];
+      function severityRank(value) {
+        const rank = severityOrder.indexOf(value);
+        return rank < 0 ? 5 : rank;
+      }
+      function highlightEvidence(value) {
+        return escape(displayText(value)).replace(
+          /\b(tx\.origin|msg\.sender|reentrancy|external call(?:s)?|state (?:variables|access)|balance(?:s)?|unchecked|race conditions?|access control)\b/gi,
+          "<mark>$1</mark>",
+        );
+      }
+      function shortTitle(f) {
+        return displayText(f.description || f.detector || "Observation")
+          .split("\n")[0]
+          .replace(/^Demo heuristic:\s*/i, "")
+          .replace(/; requires validation\.?$/i, "")
+          .replace(/\s*\([^)]*\.sol[^)]*\):?$/, "")
+          .replace(/\s*\(https?:\/\/[^)]+\)/g, "");
+      }
+      function sourceName(f) {
+        return (
+          {
+            "local-heuristic": "Sentinel heuristic",
+            slither: "Slither",
+            mythril: "Mythril",
+            aderyn: "Aderyn",
+          }[f.source] ||
+          f.source ||
+          "Source not recorded"
+        );
+      }
+      function findingRange(f) {
+        const first = String(f.description || "").split("\n")[0];
+        const match = first.match(/\.sol#(?:L)?(\d+)(?:-(?:L)?(\d+))?/);
+        return match
+          ? [Number(match[1]), Number(match[2] || match[1])]
+          : f.line
+            ? [f.line, f.line]
+            : null;
+      }
+      function sameSource(a, b) {
+        // Full project-relative names must agree; basename alone is not enough.
+        return Boolean(
+          a.file && b.file && displayText(a.file) === displayText(b.file),
+        );
+      }
+      function isReentrancySignal(f) {
+        return /^(reentrancy(?:-eth|-no-eth|-benign)?|external-call-order|SWC-107|low-level-calls)$/i.test(
+          f.detector || "",
+        );
+      }
+      function groupFindings(findings) {
+        const used = new Set();
+        const roots = findings
+          .filter((f) => f.status === "confirmed")
+          .map((root) => {
+            let anchor = root;
+            if (isReentrancySignal(root)) {
+              anchor =
+                findings.find(
+                  (f) =>
+                    f !== root &&
+                    sameSource(root, f) &&
+                    /^reentrancy/i.test(f.detector || "") &&
+                    findingRange(f) &&
+                    root.line >= findingRange(f)[0] &&
+                    root.line <= findingRange(f)[1],
+                ) || root;
+            }
+            const range = findingRange(anchor);
+            const supporting = isReentrancySignal(root)
+              ? findings.filter(
+                  (f) =>
+                    f !== root &&
+                    f.status !== "confirmed" &&
+                    !used.has(f.id) &&
+                    isReentrancySignal(f) &&
+                    sameSource(anchor, f) &&
+                    range &&
+                    f.line >= range[0] &&
+                    f.line <= range[1],
+                )
+              : [];
+            supporting.forEach((f) => used.add(f.id));
+            return { root, anchor, supporting };
+          });
+        const remaining = findings.filter(
+          (f) => f.status !== "confirmed" && !used.has(f.id),
+        );
+        return {
+          roots,
+          candidates: remaining.filter((f) => f.severity !== "informational"),
+          technical: remaining.filter((f) => f.severity === "informational"),
+          supportCount: used.size,
+        };
+      }
+      function severityRank(severity) {
+        const rank = severityOrder.indexOf(severity);
+        return rank < 0 ? severityOrder.length : rank;
+      }
+      function observationSummary(f) {
+        const summaries = {
+          "reentrancy-eth": "External calls may permit re-entry",
+          "reentrancy-no-eth":
+            "Re-entry may change contract state unexpectedly",
+          "reentrancy-benign": "Repeated calls may affect state updates",
+          "unchecked-lowlevel": "A failed external call may go unnoticed",
+          "unchecked-low-level-call": "A failed external call may go unnoticed",
+          "SWC-104": "A failed external call may go unnoticed",
+          "SWC-114": "Transaction ordering may affect the outcome",
+          "SWC-115": "Authorization depends on the transaction origin",
+          "tx-origin": "Authorization depends on the transaction origin",
+          "arbitrary-send-eth": "Funds may be sent to a caller-chosen address",
+          "missing-zero-check":
+            "An address is used without a zero-address check",
+          "immutable-states": "A fixed value could be declared immutable",
+          "low-level-calls":
+            "A low-level external call deserves closer inspection",
+        };
+        return (
+          summaries[f.detector] ||
+          shortTitle(f)
+            .replace(/\s*\([^)]*\.sol[^)]*\)/g, "")
+            .replace(/\s+/g, " ")
+            .slice(0, 150)
+        );
+      }
+      function observationReview(f, state) {
+        if (f.status === "discarded")
+          return [
+            "Not reproduced",
+            "The recorded exploit attempt did not confirm this issue. This does not establish that the code is safe.",
+          ];
+        if (f.status === "human_review_required")
+          return [
+            "Review signal",
+            "This heuristic signal requires contextual review; it is not a demonstrated exploit.",
+          ];
+        if (f.status === "verified")
+          return ["Verified", "The record marks this finding as verified."];
+        if (f.status === "confirmed")
+          return ["Confirmed", "The exploit was reproduced by execution."];
+        if (state?.scout_only)
+          return [
+            "Scanner detected",
+            "Detection-only assessment: exploit testing and repair were not requested.",
+          ];
+        if (f.id && state?.candidate_id === f.id)
+          return [
+            "Not confirmed",
+            state.final_verification_state === "execution_unavailable"
+              ? "Selected for exploit testing, but the execution tool was unavailable."
+              : "Selected for exploit testing, but no successful reproduction was recorded. See the complete evidence report for the execution details.",
+          ];
+        return [
+          "Scanner detected",
+          "Reported by the scanner. Not individually exploit-tested; this assessment tests one selected finding.",
+        ];
+      }
+      function scannerEvidence(f) {
+        const lines = String(f.description || "")
+          .split("\n")
+          .slice(1);
+        const groups = [];
+        let current = { label: "Scanner evidence", items: [] };
+        const clean = (text) =>
+          displayText(text)
+            .replace(/^\s*[-•]\s*/, "")
+            .replace(
+              /\((?:[^()\s]+\/)*([^/()\s]+\.sol)#(?:L)?(\d+(?:-\d+)?)\)/g,
+              "($1:$2)",
+            )
+            .trim();
+        for (const raw of lines) {
+          const line = clean(raw);
+          if (!line) continue;
+          if (
+            /^External calls:$/i.test(line) ||
+            /^State variables written.*:$/i.test(line)
+          ) {
+            if (current.items.length) groups.push(current);
+            current = {
+              label: /^External/.test(line)
+                ? "External call"
+                : "State updated after call",
+              items: [],
+            };
+          } else if (
+            /can be used in cross function reentrancies:/i.test(line)
+          ) {
+            break;
+          } else current.items.push(line);
+        }
+        if (current.items.length) groups.push(current);
+        if (!groups.length) {
+          const description = clean(f.description || "");
+          if (description && description !== observationSummary(f))
+            groups.push({ label: "Scanner evidence", items: [description] });
+        }
+        if (!groups.length && f.evidence?.length)
+          groups.push({
+            label: "Scanner evidence",
+            items: f.evidence.map(clean),
+          });
+        return groups
+          .slice(0, 2)
+          .map(
+            (group) =>
+              `<section class="scanner-evidence"><h4>${escape(group.label)}</h4>${[
+                ...new Set(group.items),
+              ]
+                .slice(0, 2)
+                .map(
+                  (item) =>
+                    `<p>${highlightEvidence(item.length > 240 ? item.slice(0, 237) + "…" : item)}</p>`,
+                )
+                .join("")}</section>`,
+          )
+          .join("");
+      }
+      function observationRow(f, state) {
+        const severity = severityOrder.includes(f.severity)
+          ? f.severity
+          : "unknown";
+        const [status, explanation] = observationReview(f, state);
+        return `<details class="observation"><summary><span class="observation-meta"><span class="severity ${severity}">${escape(severity)}</span><span class="quiet">${escape(status)}</span></span><span class="observation-title">${escape(observationSummary(f))}</span><span class="observation-toggle" aria-hidden="true">⌄</span></summary><div class="observation-details"><dl class="evidence-facts"><div><dt>Scanner</dt><dd>${escape(sourceName(f))}</dd></div><div><dt>Location</dt><dd>${escape(fileName(f.file))}${f.line ? `:${f.line}` : ""}</dd></div></dl>${scannerEvidence(f)}<p class="observation-review">${escape(explanation)}</p></div></details>`;
+      }
+
+      function rootFinding(group, state) {
+        const { root, anchor, supporting } = group;
+        const range = findingRange(anchor);
+        const location = `${fileName(anchor.file)}${range ? (range[0] === range[1] ? ` · line ${range[0]}` : ` · lines ${range[0]}–${range[1]}`) : ""}`;
+        const source = state.original_source?.[root.file];
+        const rangeSource =
+          source && range
+            ? source
+                .split("\n")
+                .slice(range[0] - 1, range[1])
+                .join("\n")
+            : "";
+        const sourceRows = String(source || "").split("\n");
+        const authLine =
+          root.detector === "tx-origin-authentication"
+            ? sourceRows.findIndex((line) => /require\(.*tx\.origin/.test(line))
+            : -1;
+        const evidenceStart = Math.max(
+          1,
+          (authLine >= 0 ? authLine + 1 : range?.[0] || root.line || 1) - 2,
+        );
+        const evidenceEnd = Math.min(
+          authLine >= 0 ? authLine + 4 : (range?.[1] || root.line || 1) + 2,
+          evidenceStart + 18,
+        );
+        const evidenceSource = source
+          ? sourceRows.slice(evidenceStart - 1, evidenceEnd).join("\n")
+          : "";
+        const call = rangeSource.indexOf("msg.sender.call"),
+          reset = rangeSource.search(/balances\[msg\.sender\]\s*=\s*0/);
+        const explainsReentry =
+          isReentrancySignal(root) && call >= 0 && reset > call;
+        const explanation = explainsReentry
+          ? "The contract calls the recipient before resetting their balance, allowing re-entry while the previous balance is still available."
+          : shortTitle(root);
+        const description = String(anchor.description || "");
+        const callLoc = description.match(
+          /External calls:[\s\S]*?\.sol#(?:L)?(\d+)/,
+        );
+        const writeLoc = description.match(
+          /State variables written[\s\S]*?\.sol#(?:L)?(\d+)/,
+        );
+        const severity = severityOrder.includes(root.severity)
+          ? root.severity
+          : "unknown";
+        return `<article class="root-finding"><div class="finding-top"><span class="severity ${severity}">${escape(severity)}</span><span class="confirmed-label">Confirmed</span></div><h3>${escape(shortTitle(anchor))}</h3><p class="root-location">${escape(location)}</p>${explanation !== shortTitle(anchor) ? `<p class="root-explanation">${escape(explanation)}</p>` : ""}<div class="root-provenance">Detected by · ${escape(sourceName(root))}${anchor !== root ? ` · Corroborated by ${escape(sourceName(anchor))}` : ""}</div>
+        <div class="inline-evidence"><h4>Evidence</h4>${evidenceSource ? `<pre class="evidence-code" tabindex="0">${sourceLines(evidenceSource, "", evidenceStart)}</pre>` : ""}<dl class="evidence-facts">${callLoc ? `<div><dt>External call</dt><dd>${escape(fileName(anchor.file))}:${callLoc[1]}</dd></div>` : ""}${writeLoc ? `<div><dt>State write</dt><dd>${escape(fileName(anchor.file))}:${writeLoc[1]}</dd></div>` : ""}<div><dt>Detector</dt><dd>${escape(sourceName(anchor))} · ${escape(anchor.detector)}</dd></div></dl>
+        </div>
+        ${supporting.length ? `<details class="supporting"><summary>Supporting signals · ${supporting.length}</summary><p class="quiet">Related detector observations at this location; not separate confirmed vulnerabilities.</p>${supporting.map((f) => observationRow(f, state)).join("")}</details>` : ""}</article>`;
+      }
+      function renderVerification(state) {
+        const judge = state.judge_result;
+        const proof = state.exploit_artifact?.execution;
+        const rows = [
+          [
+            "Exploit reproduction",
+            state.exploit_confirmed ? true : proof ? false : null,
+            "Passed",
+          ],
+          [
+            "Patch compilation",
+            state.compilation_result
+              ? state.compilation_result.success
+              : judge?.build_passed
+                ? true
+                : null,
+            "Passed",
+          ],
+          [
+            "Regression test",
+            state.regression_result
+              ? state.regression_result.success
+              : judge?.regression_passed
+                ? true
+                : null,
+            "Passed",
+          ],
+          [
+            "Exploit after patch",
+            judge?.build_passed && state.exploit_result
+              ? judge.exploit_neutralized
+              : null,
+            "Blocked",
+          ],
+        ];
+        $("verification").innerHTML = rows
+          .map(
+            ([label, result, success]) =>
+              `<div class="verification-row"><span>${label}</span><strong class="${result === true ? "pass" : result === false ? "fail" : "pending"}">${result === true ? "✓ " + success : result === false ? "! Failed" : "Not run"}</strong></div>`,
+          )
+          .join("");
+      }
+      function renderAssessment(state, coverage) {
+        const grouped = groupFindings(state.findings || []);
+        const urgent = grouped.candidates.filter(
+          (f) => f.severity === "critical",
+        );
+        const observations = grouped.candidates.filter(
+          (f) => f.severity !== "critical",
+        );
+        const confirmed = grouped.roots.length;
+        const repaired =
+          state.judge_result?.verified && state.patch_artifact ? 1 : 0;
+        if (confirmed) {
+          $("conclusion").innerHTML =
+            `<h3>${confirmed} confirmed vulnerabilit${confirmed === 1 ? "y" : "ies"}</h3><p>${repaired ? `${repaired} repaired · verified` : "No verified repair"}${!coverage ? " · Scanner coverage incomplete" : ""}</p>`;
+          $("conclusion-state").textContent = "";
+        }
+        $("findings").innerHTML = confirmed
+          ? grouped.roots
+              .sort(
+                (a, b) =>
+                  severityRank(a.root.severity) - severityRank(b.root.severity),
+              )
+              .map((g) => rootFinding(g, state))
+              .join("")
+          : '<p class="empty">No vulnerability has been confirmed by execution.</p>';
+        if (urgent.length) {
+          if (!confirmed) $("findings").innerHTML = "";
+          $("findings").innerHTML += urgent
+            .map((f) => observationRow(f, state))
+            .join("");
+        }
+        $("observation-count").textContent =
+          `${observations.length} unconfirmed`;
+        $("observations").innerHTML =
+          observations
+            .sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+            .map((f) => observationRow(f, state))
+            .join("") ||
+          '<p class="empty">No other unconfirmed observations.</p>';
+        renderVerification(state);
+      }
+      function reportLabel(name) {
+        const stamp = name?.match(
+          /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/,
+        );
+        if (!stamp) return name || "Unsaved report";
+        return new Date(
+          `${stamp[1]}-${stamp[2]}-${stamp[3]}T${stamp[4]}:${stamp[5]}:${stamp[6]}Z`,
+        ).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+      function renderDownloads(names) {
+        const primary = names.filter(
+          (name) =>
+            /^sentinel-report-[^/]+\.(md|json|sarif)$/.test(name) &&
+            !name.includes("__"),
+        );
+        const link = (name, label) =>
+          `<a class="download-link" download href="/reports/${name.split("/").map(encodeURIComponent).join("/")}"><span>${escape(label)}</span><span aria-hidden="true">↓</span></a>`;
+        $("artifacts").innerHTML = primary.length
+          ? primary
+              .map((name) =>
+                link(
+                  name,
+                  name.endsWith(".md")
+                    ? "Audit report · Markdown"
+                    : name.endsWith(".sarif")
+                      ? "Security findings · SARIF"
+                      : "Complete evidence · JSON",
+                ),
+              )
+              .join("")
+          : '<p class="empty">No report files available.</p>';
+      }
+      function renderLedger(state, artifactNames = []) {
+        if (!state) return;
+        const confirmed = state.findings.filter(
+          (f) => f.status === "confirmed",
+        ).length;
+        const analyzers = state.analyzer_runs || [];
+        const coverage =
+          Boolean(analyzers.length) &&
+          analyzers.every((run) =>
+            ["completed", "skipped"].includes(run.status),
+          );
+        displayRoots = [state.project_path, state.workspace_path].filter(
+          Boolean,
+        );
+        const conclusion = conclusionFor(state, coverage, confirmed);
+        $("conclusion-state").textContent = title(
+          state.final_verification_state,
+        );
+        $("conclusion").className = `conclusion ${conclusion.tone}`;
+        $("conclusion").innerHTML =
+          `<h3>${escape(conclusion.heading)}</h3><p>${escape(displayText(conclusion.body))}</p>`;
+        renderPhases(state, coverage);
+        renderRepair(state);
+        renderAssessment(state, coverage);
+        renderDownloads(artifactNames);
+      }
+      let selectionRequest = 0,
+        refreshing = false,
+        running = false;
+      async function request(url, options) {
+        const response = await fetch(url, {
+          ...options,
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!response.ok) {
+          let message = `Request failed (${response.status})`;
+          try {
+            const body = await response.json();
+            message = typeof body.detail === "string" ? body.detail : message;
+          } catch {}
+          throw new Error(message);
+        }
+        return response.json();
+      }
+      async function loadLedger(name) {
+        if (!name || running) return;
+        const version = ++selectionRequest;
+        $("results").setAttribute("aria-busy", "true");
+        $("selection-status").textContent = "Loading assessment…";
+        try {
+          const state = await request("/scans/" + encodeURIComponent(name));
+          let artifacts = [],
+            artifactError = false;
+          try {
+            artifacts = await request(
+              "/scans/" + encodeURIComponent(name) + "/artifacts",
+            );
+          } catch {
+            artifactError = true;
+          }
+          if (version !== selectionRequest) return;
+          selected = name;
+
+          renderLedger(state, artifacts);
+
+          renderScanList();
+          if (artifactError)
+            $("artifacts").innerHTML =
+              '<p class="empty">Report files could not be loaded. Select this assessment to retry.</p>';
+          $("selection-status").textContent = "";
+        } catch (error) {
+          if (version === selectionRequest)
+            $("selection-status").textContent =
+              `Could not load assessment: ${error.message}. Select it to retry.`;
+        } finally {
+          if (version === selectionRequest)
+            $("results").setAttribute("aria-busy", "false");
+        }
+      }
+      async function refresh() {
+        if (refreshing) return;
+        refreshing = true;
+        try {
+          const next = await request("/scans");
+          const changed = JSON.stringify(next) !== JSON.stringify(scans);
+          scans = next;
+          if (changed || !$("scan-list").querySelector("button"))
+            renderScanList();
+          $("sync-status").textContent = "Connected · local only";
+          if (!selected && !running && scans[0]?.ledger_name)
+            await loadLedger(scans[0].ledger_name);
+        } catch {
+          $("sync-status").textContent = "Connection unavailable · retrying";
+          if (!scans.length)
+            $("scan-list").innerHTML =
+              '<p class="empty">Cannot load assessments. Check the local server. Retrying automatically.</p>';
+        } finally {
+          refreshing = false;
+        }
+      }
+      const phaseActivities = {
+        ingest: "Preparing workspace…",
+        "static analysis": "Checking compiler…",
+        scout: "Sentinel · Analyzing contracts…",
+        "red team": "Red team · Reproducing the exploit…",
+        discard: "Reviewing unconfirmed finding…",
+        "blue team": "Blue team · Patching the vulnerable code…",
+        judge: "Verification · Checking the repair with Foundry…",
+        report: "Writing report…",
+      };
+      const phaseContext = {
+        ingest:
+          "Preparing an isolated copy of your project and mapping its contracts and functions.",
+        "static analysis":
+          "Checking the Solidity compiler before analyzing your contracts.",
+        scout:
+          "Scout is collecting scanner findings and comparing suspicious patterns. These signals help select an issue for exploit testing.",
+        "red team":
+          "The red team is preparing and testing a local exploit to check whether the selected issue can cause real impact.",
+        discard:
+          "The exploit attempt did not confirm the selected issue. Recording the result for review.",
+        "blue team":
+          "The blue team is preparing a targeted code change for the confirmed issue. The repair still needs to pass verification.",
+        judge:
+          "Checking that the patch compiles, existing tests pass, and the original exploit is blocked.",
+        report:
+          "Collecting the findings, test results, and repair evidence into your reports.",
+      };
+      let currentPhaseContext = phaseContext.ingest;
+      function updateActivityContext(item) {
+        if (item.category === "phase" && item.status === "started") {
+          currentPhaseContext =
+            phaseContext[item.summary] ||
+            "Processing the current assessment stage.";
+        }
+        let context = currentPhaseContext;
+        if (item.category === "command" && item.status === "started") {
+          const command = String(item.summary || "");
+          const tool = command.split(/\s+/)[0].split("/").pop();
+          if (tool === "slither")
+            context =
+              "Slither is checking contract structure and execution flows for known security patterns.";
+          else if (tool === "myth")
+            context =
+              "Mythril is exploring possible execution paths with symbolic analysis to find inputs that could expose a weakness.";
+          else if (tool === "aderyn")
+            context =
+              "Aderyn is inspecting the Solidity code for security risks and unsafe patterns.";
+          else if (tool === "forge")
+            context = /\bbuild\b/.test(command)
+              ? "Foundry is compiling the contracts to check that the code builds successfully."
+              : /testExploit/.test(command)
+                ? "Foundry is running the exploit test locally to check the contract’s behavior."
+                : "Foundry is running local tests to check behavior and catch regressions.";
+          else if (tool?.startsWith("solc"))
+            context =
+              "Checking the Solidity compiler needed to analyze and build this project.";
+        }
+        $("activity-context").textContent = context;
+      }
+      let currentActivity = "Preparing workspace…";
+      function updateActivity(item) {
+        updateActivityContext(item);
+        if (item.category === "phase") {
+          if (item.status === "started")
+            currentActivity =
+              phaseActivities[item.summary] || "Processing scan…";
+          $("notice").textContent = currentActivity;
+        } else if (item.category === "command") {
+          if (item.status !== "started") {
+            $("notice").textContent = currentActivity;
+            return;
+          }
+          // Show a short action, never raw command arguments or local paths.
+          const command = String(item.summary || "");
+          const tool = command.split(/\s+/)[0].split("/").pop();
+          const activity =
+            tool === "slither"
+              ? "Running Slither analysis…"
+              : tool === "myth"
+                ? "Running Mythril analysis…"
+                : tool === "forge"
+                  ? /\bbuild\b/.test(command)
+                    ? "Foundry · Building contracts…"
+                    : "Foundry · Running exploit and regression tests…"
+                  : tool?.startsWith("solc")
+                    ? "Checking Solidity compiler…"
+                    : currentActivity;
+          $("notice").textContent = activity;
+        }
+      }
+      function renderLivePhase(item) {
+        if (!["phase", "run"].includes(item.category)) return;
+        const key = item.category === "phase" ? item.summary : item.category;
+        livePhases = livePhases.filter(
+          (existing) =>
+            (existing.category === "phase"
+              ? existing.summary
+              : existing.category) !== key,
+        );
+        livePhases.push(item);
+        $("phase-label").textContent = "Scanning";
+        const statusFor = (name) => {
+          const event = livePhases.find(
+            (event) => event.category === "phase" && event.summary === name,
+          );
+          return event?.status === "completed"
+            ? "pass"
+            : event?.status === "started"
+              ? "active"
+              : event?.status === "failed"
+                ? "fail"
+                : "warn";
+        };
+        $("phases").innerHTML = stageTrack([
+          [
+            "Detect",
+            statusFor("scout") === "warn" && running
+              ? "active"
+              : statusFor("scout"),
+          ],
+          ["Prove", statusFor("red team")],
+          ["Repair", statusFor("blue team")],
+          ["Verify", statusFor("judge")],
+        ]);
+      }
+      async function loadEnvironment() {
+        try {
+          const data = await request("/environment");
+          const tools = Object.entries(data.tools);
+          const missing = tools
+            .filter(([, path]) => !path)
+            .map(([name]) => name);
+          $("readiness-label").textContent = missing.length
+            ? `Missing tools: ${missing.join(", ")}`
+            : "";
+          $("examples").innerHTML = Object.entries(data.examples)
+            .map(
+              ([name, path]) =>
+                `<button class="example" type="button" data-example="${escape(path)}">${escape(title(name.replace("vulnerable_", "")))}</button>`,
+            )
+            .join("");
+          $("max-retries").value = data.default_max_retries ?? 5;
+        } catch {
+          $("readiness-label").textContent = "Could not check local tools.";
+          $("tools").textContent =
+            "Could not check tools. Refresh the page to retry.";
+        }
+      }
+
+      function updateMode() {
+        $("max-retries").disabled = running || $("scout").checked;
+        $("run").textContent = running
+          ? "Scanning…"
+          : $("scout").checked
+            ? "Start detection"
+            : "Start scan";
+        $("mode-help").textContent = $("scout").checked
+          ? "Findings only · no exploit tests or repairs."
+          : $("mock").checked
+            ? "Example templates · Forge required for verification."
+            : "Configured models · Forge verifies repairs.";
+      }
+      $("examples").addEventListener("click", (event) => {
+        const path = event.target.closest("[data-example]")?.dataset.example;
+        if (path && !running) {
+          $("path").value = path;
+          $("mock").checked = true;
+          $("scout").checked = false;
+          $("full-mode").checked = true;
+          updateMode();
+          $("path").focus();
+        }
+      });
+      $("scout").addEventListener("change", updateMode);
+      $("full-mode").addEventListener("change", updateMode);
+      $("mock").addEventListener("change", updateMode);
+      $("scan-list").addEventListener("click", (event) => {
+        const ledger = event.target.closest("[data-ledger]")?.dataset.ledger;
+        if (ledger) loadLedger(ledger);
+      });
+      function setRunning(value) {
+        running = value;
+        currentPhaseContext = phaseContext.ingest;
+        $("activity-context").textContent = value ? currentPhaseContext : "";
+        $("results").className = value ? "results is-running" : "results";
+        $("phases").className = value
+          ? "stage-track is-running"
+          : "stage-track";
+        document
+          .querySelectorAll(
+            "#scan-form input,#run,#examples button,#scan-list button",
+          )
+          .forEach((el) => (el.disabled = value));
+        updateMode();
+      }
+      $("scan-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (running) return;
+        const path = $("path").value.trim();
+        if (!path) {
+          $("path").setCustomValidity("Enter a Foundry project path.");
+          $("path").reportValidity();
+          return;
+        }
+        const payload = {
+          project_path: path,
+          mock: $("mock").checked,
+          scout_only: $("scout").checked,
+          max_retries: Number($("max-retries").value),
+        };
+        ++selectionRequest;
+        setRunning(true);
+        livePhases = [];
+        for (const id of ["verification", "observations"])
+          $(id).innerHTML = '<p class="empty">Waiting for results.</p>';
+        $("observation-count").textContent = "";
+        currentActivity = "Preparing workspace…";
+        $("results").setAttribute("aria-busy", "false");
+        $("selection-status").textContent = "";
+        $("notice").className = "notice active";
+        $("notice").textContent = "Preparing workspace…";
+        $("phase-label").textContent = "Queued";
+        $("repair-status").textContent = "Pending";
+        $("repair").innerHTML =
+          '<p class="empty">Code changes will appear when the scan finishes.</p>';
+        $("phases").innerHTML = stageTrack([
+          ["Detect", "active"],
+          ["Prove", "warn"],
+          ["Repair", "warn"],
+          ["Verify", "warn"],
+        ]);
+        $("conclusion-state").textContent = "Running";
+        $("conclusion").className = "conclusion";
+        $("conclusion").innerHTML = "<h3>Scanning…</h3>";
+        for (const id of ["findings", "artifacts"])
+          $(id).innerHTML = '<p class="empty">Waiting for results.</p>';
+        displayRoots = [path];
+        selected = null;
+        renderScanList();
+        let stream;
+        const finish = async (status, message) => {
+          stream?.close();
+          setRunning(false);
+          $("notice").className =
+            status === "failed" ? "notice error" : "notice";
+          $("notice").textContent =
+            status === "completed" ? "Scan complete." : displayText(message);
+          if (status === "failed") {
+            livePhases = livePhases.map((item) =>
+              item.status === "started" ? { ...item, status: "failed" } : item,
+            );
+            renderLivePhase({
+              category: "run",
+              status: "failed",
+              summary: message,
+            });
+            $("phase-label").textContent = "Scan failed";
+            $("repair-status").textContent = "Unavailable";
+            for (const id of [
+              "verification",
+              "observations",
+              "findings",
+              "artifacts",
+            ])
+              $(id).innerHTML = '<p class="empty">Scan did not complete.</p>';
+            $("repair").innerHTML =
+              '<p class="empty">Scan failed. No repair is available.</p>';
+            $("conclusion-state").textContent = "Failed";
+            $("conclusion").className = "conclusion fail";
+            $("conclusion").innerHTML =
+              `<h3>Assessment could not complete</h3><p>${escape(displayText(message))}</p>`;
+            // Keep the failure visible instead of selecting an unrelated older report.
+            selected = "failed-run";
+          }
+          await refresh();
+          if (status === "completed" && selected === null) {
+            $("conclusion-state").textContent = "Completed";
+            $("conclusion").innerHTML =
+              "<h3>Scan complete</h3><p>Loading report…</p>";
+          }
+        };
+        try {
+          const body = await request("/runs", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          stream = new EventSource(`/runs/${body.run_id}/events`);
+          stream.addEventListener("update", (event) => {
+            const item = JSON.parse(event.data);
+            updateActivity(item);
+            renderLivePhase(item);
+            if (
+              item.category === "run" &&
+              ["completed", "failed"].includes(item.status)
+            )
+              void finish(item.status, item.summary);
+          });
+          stream.addEventListener("error", async () => {
+            // A disconnected event stream does not mean the assessment stopped.
+            $("notice").textContent =
+              "Live updates disconnected. Checking assessment status…";
+            try {
+              const status = await request(`/runs/${body.run_id}`);
+              if (["completed", "failed"].includes(status.status))
+                await finish(status.status, `Assessment ${status.status}.`);
+              else
+                $("notice").textContent =
+                  "Assessment is still running. Reconnecting to live updates…";
+            } catch {
+              $("notice").textContent =
+                "Connection lost. The assessment may still be running. Reconnecting…";
+            }
+          });
+        } catch (error) {
+          await finish("failed", error.message);
+          $("phase-label").textContent = "Could not start";
+          $("phases").innerHTML = gate(
+            "Assessment request",
+            "fail",
+            error.message,
+          );
+        }
+      });
+      $("path").addEventListener("input", () =>
+        $("path").setCustomValidity(""),
+      );
+      updateMode();
+      loadEnvironment();
+      refresh();
+      setInterval(() => {
+        if (!document.hidden) refresh();
+      }, 4000);
+    </script>
+  </body>
 </html>

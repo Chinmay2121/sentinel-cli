@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-89d8d2592217dd1f",
+  "type": "solc-version",
+  "severity": "informational",
+  "location": {
+    "file": "src/UncheckedCallWallet.sol",
+    "line": 1
+  },
+  "what_was_observed": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/UncheckedCallWallet.sol#1)\n",
+  "evidence": [
+    "slither:solc-version: Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/UncheckedCallWallet.sol#1)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}

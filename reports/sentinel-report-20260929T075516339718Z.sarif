@@ -1,0 +1,283 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Sentinel",
+          "rules": [
+            {
+              "id": "arbitrary-send-eth",
+              "name": "arbitrary-send-eth",
+              "shortDescription": {
+                "text": "arbitrary send eth"
+              }
+            },
+            {
+              "id": "tx-origin-authentication",
+              "name": "tx-origin-authentication",
+              "shortDescription": {
+                "text": "tx origin authentication"
+              }
+            },
+            {
+              "id": "tx-origin",
+              "name": "tx-origin",
+              "shortDescription": {
+                "text": "tx origin"
+              }
+            },
+            {
+              "id": "missing-zero-check",
+              "name": "missing-zero-check",
+              "shortDescription": {
+                "text": "missing zero check"
+              }
+            },
+            {
+              "id": "SWC-115",
+              "name": "SWC-115",
+              "shortDescription": {
+                "text": "SWC 115"
+              }
+            },
+            {
+              "id": "solc-version",
+              "name": "solc-version",
+              "shortDescription": {
+                "text": "solc version"
+              }
+            },
+            {
+              "id": "immutable-states",
+              "name": "immutable-states",
+              "shortDescription": {
+                "text": "immutable states"
+              }
+            },
+            {
+              "id": "privilege-boundary-outlier",
+              "name": "privilege-boundary-outlier",
+              "shortDescription": {
+                "text": "privilege boundary outlier"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "arbitrary-send-eth",
+          "level": "error",
+          "message": {
+            "text": "TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:arbitrary-send-eth: TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) sends eth to arbitrary user\n\tDangerous calls:\n\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "tx-origin-authentication",
+          "level": "error",
+          "message": {
+            "text": "Demo heuristic: authorization uses tx.origin instead of msg.sender."
+          },
+          "properties": {
+            "sentinelStatus": "confirmed",
+            "confidence": "low",
+            "evidence": [
+              "Demo-only lexical pattern; not a Slither or Mythril result"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "tx-origin",
+          "level": "warning",
+          "message": {
+            "text": "TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) uses tx.origin for authorization: require(bool,string)(tx.origin == owner,not owner) (src/TxOriginWallet.sol#12)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:tx-origin: TxOriginWallet.withdraw(address) (src/TxOriginWallet.sol#11-14) uses tx.origin for authorization: require(bool,string)(tx.origin == owner,not owner) (src/TxOriginWallet.sol#12)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing-zero-check",
+          "level": "note",
+          "message": {
+            "text": "TxOriginWallet.withdraw(address).recipient (src/TxOriginWallet.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "medium",
+            "evidence": [
+              "slither:missing-zero-check: TxOriginWallet.withdraw(address).recipient (src/TxOriginWallet.sol#11) lacks a zero-check on :\n\t\t- recipient.transfer(address(this).balance) (src/TxOriginWallet.sol#13)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SWC-115",
+          "level": "note",
+          "message": {
+            "text": "Dependence on tx.origin\nUse of tx.origin as a part of authorization control.\nThe tx.origin environment variable has been found to influence a control flow decision. Note that using tx.origin as a security control might cause a situation where a user inadvertently authorizes a smart contract to perform an action on their behalf. It is recommended to use msg.sender instead."
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "unknown",
+            "evidence": [
+              "mythril:SWC-115: Use of tx.origin as a part of authorization control.\nThe tx.origin environment variable has been found to influence a control flow decision. Note that using tx.origin as a security control might cause a situation where a user inadvertently authorizes a smart contract to perform an action on their behalf. It is recommended to use msg.sender instead."
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "solc-version",
+          "level": "note",
+          "message": {
+            "text": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/TxOriginWallet.sol#1)\n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:solc-version: Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (src/TxOriginWallet.sol#1)\n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "immutable-states",
+          "level": "note",
+          "message": {
+            "text": "TxOriginWallet.owner (src/TxOriginWallet.sol#5) should be immutable \n"
+          },
+          "properties": {
+            "sentinelStatus": "candidate",
+            "confidence": "high",
+            "evidence": [
+              "slither:immutable-states: TxOriginWallet.owner (src/TxOriginWallet.sol#5) should be immutable \n"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "privilege-boundary-outlier",
+          "level": "warning",
+          "message": {
+            "text": "This public state-changing function sits beside privileged controls but declares no recognizable access modifier; review the intended authorization model."
+          },
+          "properties": {
+            "sentinelStatus": "human_review_required",
+            "confidence": "low",
+            "evidence": [
+              "Privileged-control indicators exist in the contract source",
+              "Public/external function has a state-change signal without a recognized modifier",
+              "Source heuristic only; authorization may be enforced internally."
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TxOriginWallet.sol"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

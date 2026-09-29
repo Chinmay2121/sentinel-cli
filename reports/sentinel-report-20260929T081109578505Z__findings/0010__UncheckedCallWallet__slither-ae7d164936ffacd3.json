@@ -1,0 +1,15 @@
+{
+  "finding_id": "slither-ae7d164936ffacd3",
+  "type": "low-level-calls",
+  "severity": "informational",
+  "location": {
+    "file": "src/UncheckedCallWallet.sol",
+    "line": 11
+  },
+  "what_was_observed": "Low level call in UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15):\n\t- recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n",
+  "evidence": [
+    "slither:low-level-calls: Low level call in UncheckedCallWallet.withdraw(address) (src/UncheckedCallWallet.sol#11-15):\n\t- recipient.call{value: amount}() (src/UncheckedCallWallet.sol#13)\n"
+  ],
+  "pipeline_status": "scout_candidate",
+  "patch_file": null
+}
