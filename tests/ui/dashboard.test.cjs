@@ -43,6 +43,7 @@ function dashboard() {
   });
   // Exercise functions independently of startup network traffic.
   const script = html
+    .replace(/<!--[\s\S]*?-->/g, "")
     .split("<script>")[1]
     .split("</script>")[0]
     .replace(/updateMode\(\);\s*loadEnvironment\(\);\s*refresh\(\);/, "");
